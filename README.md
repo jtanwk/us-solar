@@ -8,7 +8,7 @@ Work in progress.
 *Note: Datasets are omitted from repo due to large filesizes.*
 
 Dataset | Source | Description | Unit of Analysis | Last downloaded | URL
----
+--- | --- | --- | --- | --- | ---
 OpenPV Project | National Renewable Energy Laboratory (NREL), U.S. Department of Energy | Database of public data for photovoltaic system (i.e. solar panel) installations in the US. Core dataset from the Lawrence Berkeley National Laboratories (LBL). Data available for 1969 - 2018. | Solar panel installation | Jan 19, 2019 | [Link to site](https://openpv.nrel.gov/about)
 
 Solar Summaries | National Renewable Energy Laboratory (NREL), U.S. Department of Energy | Average solar irradiation data by state and zipcode. Data available for 1998 - 2009 | Zipcode-month; alternatively, 10 km^2 grid boxes. | Jan 19, 2019  | [Link to site](https://www.nrel.gov/gis/data-solar.html)
