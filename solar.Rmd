@@ -108,7 +108,7 @@ dni_df %>%
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(title = '3 of top 5 states for solar panels receive the least sun',
-       subtitle = 'Each line tracks the average direct normal irradiance (DNI) for a specific state, \naveraged over 1998-2009.',
+       subtitle = 'Each line tracks the average direct normal irradiance (DNI) for a specific state.\nStates with the most solar panels per capita are highlighted in red.',
        x = 'Month',
        y = 'Average DNI (kWh/m2/day)',
        caption = 'Data source: NREL (US Dept of Energy)')
