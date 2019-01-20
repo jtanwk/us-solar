@@ -1,0 +1,451 @@
+---
+title: "Solar Panels"
+output: html_notebook
+---
+
+```{r setup, message=FALSE}
+# Setup
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(ggrepel)
+library(naniar)
+library(here)
+library(readxl) # for xlsx files 
+```
+
+
+
+# Solar Irradiance Cycles by State
+
+```{r irradiance-import, warning=FALSE}
+dni <- read_excel(here('data', 'data-solar-irradiance', 'solarsummaries.xlsx'),
+                  sheet = 'DNI State',
+                  range = 'A1:BO52',
+                  col_types = c('text', rep('numeric', 66)))
+
+# Reshape from wide to long
+dni_df <- dni %>%
+  gather(key = metric, value =  value, -c("State", "State FIPS")) 
+
+# Remove time period from metric name and reshape back to wide-ish
+# Now unit of analysis is state-month-estimate instead of state-estimate
+dni_df %<>%
+  mutate(period = substr(dni_df$metric, 1, str_locate(dni_df$metric, " ") - 1)) %>%
+  mutate(attr = substr(dni_df$metric, str_locate(dni_df$metric, " ") + 1, 
+                       nchar(dni_df$metric))) %>%
+  mutate(period = substr(period, 1, 3)) %>%
+  mutate(period = factor(period,
+                         levels = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                                    'Ann'))) %>%
+  select(-metric) %>%
+  spread(key = attr, value = value) %>%
+  rename(avg = 'Average (kWh/m2/day)',
+         max = 'Average Maximum (kWh/m2/day)',
+         min = 'Average Minimum (kWh/m2/day)',
+         median = 'Average Median (kWh/m2/day)',
+         sd = 'Average Standard Deviation (kWh/m2/day)')
+```
+
+Plot monthly cycles of direct normal solar irradiance:
+
+```{r irradiance-plot}
+# Version with lines colored by intentional highlight
+dni_df %>%
+  filter(period != "Ann") %>%
+  mutate(highlight = ifelse(State %in% c('California', 'Arizona', 'Massachusetts',
+                                         'Connecticut', 'New Jersey'),
+                            TRUE, FALSE)) %>%
+  ggplot() +
+  geom_line(aes(x = period, y = avg, group = State, color = highlight),
+            show.legend = FALSE,
+            na.rm = TRUE) +
+  geom_text_repel(data = dni_df[(dni_df$period == 'Dec' & 
+                           dni_df$State %in% c('California', 'Arizona', 
+                                               'Massachusetts', 'Connecticut', 
+                                               'New Jersey')), ],
+          aes(label = state.abb[match(State, state.name)], x = Inf, y = avg)) +
+  scale_color_manual(values = c('light grey', 'red')) +
+  theme_minimal() +
+  labs(title = 'States with most solar panels vary widely in solar resource',
+       subtitle = 'By average annual Direct Normal Irradiance (DNI), 1998-2009',
+       x = 'Month',
+       y = 'Average DNI (kWh/m2/day)',
+       caption = 'Data source: National Renewable Energy Laboratory (NREL), U.S. Department of Energy')
+
+ggsave(here('output', 'output-intermediate', 'irradiance_by_state_highlight.pdf'), 
+       width = 8, height = 6)
+
+# Code to order states by average annual DNI
+# dni_df %>% filter(period == 'June') %>% select(c(State, avg)) %>% arrange(-avg)
+```
+
+
+```{r irradiance-plot-2}
+# Version with lines colored by average DNI
+dni_df %>%
+  filter(State != "Alaska") %>%
+  group_by(State) %>%
+  mutate(dni_color = ifelse(period == 'Ann', avg, NA)) %>%
+  fill(dni_color, .direction = 'up') %>%
+  filter(period != "Ann") %>%
+  ggplot() +
+  geom_line(aes(x = period, y = avg, group = State, color = dni_color),
+            na.rm = TRUE) +
+  geom_text(data = dni_df[(dni_df$period == 'Dec' & 
+                             dni_df$State %in% c('Arizona', 'Pennsylvania')), ],
+            aes(label = state.abb[match(State, state.name)], x = Inf, y = avg),
+            hjust = 1.1) +
+  scale_color_gradient(low = '#FFCC00', high = '#FF3300',
+                       guide = 'colorbar') +
+  theme_minimal() +
+#  theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+  labs(title = 'Arizona is the sunniest state, Pennsylvania the least sunny',
+       subtitle = 'By average annual Direct Normal Irradiance (DNI), 1998-2009',
+       x = 'Month',
+       y = 'Average DNI (kWh/m2/day)',
+       caption = 'Data source: National Renewable Energy Laboratory (NREL), U.S. Department of Energy')
+
+ggsave(here('output', 'output-intermediate', 'irradiance_by_state_color.pdf'), 
+       width = 8, height = 6)
+```
+
+```{r irradiance-plot-3}
+# Version with lines colored by region of state
+# Highlight states with most panels per 10k pop: CA, AZ, MA, CT, NJ
+dni_df %>%
+  filter(State != "Alaska") %>%
+  filter(period != "Ann") %>%
+  mutate(region = state.region[match(State, state.name)]) %>%
+  filter(!is.na(region)) %>%
+  mutate(highlight = ifelse(State %in% c('California', 'Arizona', 'Massachusetts',
+                                         'Connecticut', 'New Jersey'),
+                            TRUE, FALSE)) %>%
+  ggplot() +
+  geom_line(aes(x = period, y = avg, group = State, color = highlight),
+            na.rm = TRUE,
+            show.legend = FALSE) +
+  scale_color_manual(values = c('grey', 'red')) +
+  facet_grid(~ region) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = '3 of top 5 states for solar panels receive the least sun',
+       subtitle = 'By average annual Direct Normal Irradiance (DNI), 1998-2009',
+       x = 'Month',
+       y = 'Average DNI (kWh/m2/day)',
+       caption = 'Data source: National Renewable Energy Laboratory (NREL), U.S. Department of Energy')
+
+# TODO: Get labels for highlighted states 
+
+ggsave(here('output', 'output-intermediate', 'irradiance_by_state_region_highlight.pdf'), 
+       width = 8, height = 6)
+```
+
+```{r irradiance-plot-4}
+# Version with lines colored by region, no labels
+dni_df %>%
+  filter(State != "Alaska", period != "Ann") %>%
+  mutate(region = state.region[match(State, state.name)]) %>%
+  group_by(State) %>%
+  mutate(annual_avg = mean(avg)) %>%
+  filter(!is.na(region)) %>%
+  ggplot() +
+  geom_line(aes(x = period, y = avg, group = State, color = annual_avg),
+            na.rm = TRUE) +
+  scale_color_gradient(low = '#FFCC00', high = '#FF3300',
+                       guide = 'colorbar') +
+  facet_grid(. ~ region) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  labs(title = '3 of top 5 states for solar panels receive the least sun',
+       subtitle = 'By average annual Direct Normal Irradiance (DNI), 1998-2009',
+       x = 'Month',
+       y = 'Average DNI (kWh/m2/day)',
+       caption = 'Data source: National Renewable Energy Laboratory (NREL), U.S. Department of Energy')
+
+# TODO: Get labels for highlighted states 
+
+ggsave(here('output', 'output-intermediate', 'irradiance_by_state_region.pdf'), 
+       width = 8, height = 6)
+```
+
+
+
+
+
+# Solar Panel Installations per 100K people by State, 1969-2016
+
+First we import the solar panel installation data:
+
+```{r panels-import, message=FALSE}
+# Import solar panel data
+panels <- read_csv(here('data', 'data-solar-panels', 'openpv_all.csv'),
+                   col_types = cols_only(state = "c",
+                                         date_installed = "c",
+                                         zipcode = "c",
+                                         cost = "c"),
+                   quoted_na = TRUE)
+panels_df <- panels %>%
+  mutate(date_installed = as.Date(date_installed, format = '%m/%d/%Y')) %>%
+  mutate(year_installed = year(date_installed))
+
+head(panels_df)
+```
+
+Next, we need to get population data to scale our installation counts by. The metric I'm aiming for is "number of solar panel installations per 100,000 people".
+
+```{r pop-import}
+# Prepare population data from non-separated formats
+# Source: https://seer.cancer.gov/popdata/popdic.html
+pop <- read_csv(here('data', 'data-population-estimates',
+                     'us.1969_2016.19ages.adjusted.txt'),
+                col_types = 'c',
+                col_names = FALSE)
+
+pop_df <- pop %>%
+  mutate(year = as.numeric(substr(X1, 1, 4)),
+         state = substr(X1, 5, 6),
+         state_fips = substr(X1, 7, 8),
+         county_fips = substr(X1, 9, 11),
+         seer_registry = substr(X1, 12, 13),
+         race = substr(X1, 14, 14),
+         origin = substr(X1, 15, 15),
+         sex = substr(X1, 16, 16),
+         age = as.numeric(substr(X1, 17, 18)),
+         population = as.numeric(substr(X1, 19, 27)))
+
+# Get summary by state-year
+pop_by_state <- pop_df %>%
+  group_by(year, state) %>%
+  summarize(total_pop = sum(population))
+```
+
+Join the new population data to the solar panel data:
+
+```{r panel-join}
+# 1. Group by year and fill in empty years with 0 installs
+panels_cumul <- panels_df %>%
+  group_by(state, year_installed) %>%
+  count() %>%
+  ungroup() %>%
+  complete(state, year_installed, fill = list(n = 0)) %>%
+  rename(year = year_installed)
+  
+# 2. Inner-join population data
+# 3a. Get cumulative sum of installations by state
+# 3b. Add 1 to each obs to accomodate log scale
+panels_cumul %<>%
+  inner_join(pop_by_state, by = c('state', 'year')) %>%
+  filter(year != 1969) %>%
+  mutate(sum_n = ave(n, state, FUN = cumsum)) %>%
+  mutate(sum_n_1 = sum_n + 1) %>%
+  mutate(panels_per_10k = (sum_n_1 / total_pop) * 10000)
+  
+# 3. Get top n states by panels per 10,000 population
+panels_cumul %>% 
+  filter(year == 2016) %>% 
+  select(state, panels_per_10k) %>% 
+  arrange(-panels_per_10k)
+# CA, AZ, MA, CT, NJ
+```
+
+
+```{r panel-plot-1}
+# Most recent totals, colored by average annual DNI
+# Need to join on DNI data from dni_df
+panels_cumul %>%
+  mutate(region = state.region[match(state, state.abb)]) %>%
+  filter(!is.na(region)) %>%
+  filter(year == 2016) %>%
+  left_join(dni_df %>% 
+              filter(period == "Ann") %>%
+              mutate(state = state.abb[match(State, state.name)]) %>%
+              select(state, avg),
+            by = c("state" = "state")) %>%
+  ggplot(aes(x = reorder(state, -panels_per_10k), 
+             y = panels_per_10k, 
+             fill = avg)) +
+  geom_bar(stat = 'identity') +
+  scale_fill_gradient(low = '#FFCC00', high = '#FF3300',
+                     guide = 'colorbar') +
+  facet_grid(. ~ region, 
+             scales = "free_x", 
+             space = "free_x") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  labs(title = 'West and Northeast states well-represented in solar panels',
+       subtitle = 'Total solar panel installations per 10,000 people (cumulative as of 2016)',
+       x = 'State',
+       y = 'Panels per 10,000 people',
+       caption = 'Data sources:\n NREL, US Department of Energy (solar panels)\nNational Cancer Institute (population)')
+
+ggsave(here('output', 'output-intermediate', 'panels_by_state_region.pdf'), 
+       width = 8, height = 6)
+```
+
+
+```{r panel-plot-2}
+# Cumulative installs over time
+panels_cumul %>%
+  mutate(label = ifelse((panels_cumul$year == 2016 &
+                         panels_cumul$state %in% c('CA', 'AZ', 'MA', 'CT', 'NJ')),
+                        state, NA)) %>%
+  mutate(region = state.region[match(state, state.abb)]) %>%
+  filter(!is.na(region)) %>%
+  ggplot() +
+  geom_line(aes(x = year, y = panels_per_10k, group = state, color = region),
+            alpha = 0.3,
+            show.legend = FALSE) +
+  geom_text_repel(aes(label = label, x = Inf, y = panels_per_10k)) +
+  theme_minimal()
+
+# TODO: What is the national average? Which states have above average? 
+
+# panels_cumul %>%
+#   filter(year == 2016) %>%
+#   select(year, sum_n, total_pop) %>%
+#   summarize(total_n = sum(sum_n), 
+#             us_pop = sum(total_pop),
+#             avg_panels_per_10k = sum(sum_n) / sum(total_pop))
+```
+
+
+
+# Availability of Personal Tax Credits for Renewable Energy Systems
+
+```{r tax-import}
+policy <- read_csv(here('data', 'data-state-policies', 
+                        'correlatesofstatepolicyprojectv2_1.csv')) %>%
+  select(c('state', 'year', 
+           'corporaterenew_yearadopted',
+           'environment_publicbenefit_funds',
+           'frenew',
+           'frpsexc',
+           'frps',
+           'netmeter_yearadopted',
+           'renewport',
+           'rps_yearadopted',
+           'personaltax_yearadopted', # 
+           'Cons_Renewable'))
+
+```
+
+```{r tax-plot-1}
+policy %>%
+  group_by(state) %>%
+  filter(year >= 1980) %>%
+  select(state, year, personaltax_yearadopted) %>%
+  mutate(num_policy_years = sum(personaltax_yearadopted, na.rm = TRUE)) %>%
+  mutate(tax_policy = ifelse(is.na(personaltax_yearadopted), FALSE, TRUE)) %>%
+  mutate(region = state.region[match(state, state.name)]) %>%
+  mutate(state_abb = state.abb[match(state, state.name)]) %>%
+  filter(!is.na(region)) %>%
+  ggplot(aes(x = year, y = reorder(state_abb, num_policy_years))) +
+  geom_tile(aes(fill = tax_policy),
+            color = "white") +
+  facet_grid(region ~ ., scales = "free_y", space = "free_y") +
+  theme_minimal() +
+  labs(title = "Availability of personal tax credits for renewable systems varies by state",
+       subtitle = "Adoption of renewable tax credit policy by state and year",
+       x = "Year",
+       y = "State",
+       caption = "Data source: IPPSR, Michigan State University")
+
+ggsave(here('output', 'output-intermediate', 'policy_by_state_year.pdf'),
+       width = 8, height = 6)
+```
+
+
+
+```{r tax-plot-2}
+# Number of states with personal renewable tax credits by year
+policy %>%
+  group_by(year) %>%
+  summarise(count_with_credits = sum(personaltax_yearadopted, na.rm = TRUE)) %>%
+  filter(count_with_credits > 0) %>%
+  ggplot() +
+  geom_line(aes(x = year, y = count_with_credits, group = 1))
+```
+
+
+```{r tax-plot-3}
+# States by year of first adoption of personal tax credits for renewable energy
+# Merge on 2016 panels per 10k population
+policy_by_start_year <- policy %>%
+  select(state, year, personaltax_yearadopted) %>%
+  mutate(tax_start_year = ifelse(personaltax_yearadopted == 1, year, NA)) %>%
+  group_by(state) %>%
+  mutate(tax_start_year = min(tax_start_year, na.rm = TRUE)) %>%
+  mutate(tax_start_year = ifelse(is.infinite(tax_start_year), NA, tax_start_year)) %>%
+  select(state, tax_start_year) %>%
+  unique() %>%
+  ungroup() %>%
+  mutate(years_since = 2018 - tax_start_year) %>%
+  mutate(state = state.abb[match(state, state.name)]) %>%
+  left_join(panels_cumul %>% filter(year == 2016) %>% select(state, panels_per_10k))
+
+# Scatterplot using geom_miss_point
+policy_by_start_year %>%
+  ggplot(aes(x = years_since, y = panels_per_10k)) +
+  geom_miss_point() +
+  geom_text_repel(aes(label = state)) +
+  theme_minimal()
+
+# Scatterplot using missing flag, imputed -5 for missing years, geom_text
+policy_by_start_year %>%
+  mutate(no_tax_credits = ifelse(is.na(years_since), TRUE, FALSE)) %>%
+  mutate(years_since = ifelse(is.na(years_since), 0, years_since)) %>%
+  mutate(label = ifelse((panels_per_10k > 50 | years_since > 20), state, "")) %>%
+  ggplot(aes(x = years_since, y = panels_per_10k)) +
+  geom_point(aes(color = no_tax_credits)) +
+  geom_text_repel(aes(label = label)) +
+  theme_minimal()
+
+# TODO: Solar panel count by annual average DNI
+```
+
+```{r tax-plot-4}
+# Bubble chart of panels vs avg DNI, grouped by availability of tax credits,
+# sized by population 
+
+panels_cumul %>%
+  filter(year == 2016) %>%
+  select(state, panels_per_10k) %>%
+  inner_join(dni_df %>% 
+               filter(period == "Ann") %>%
+               mutate(state = state.abb[match(State, state.name)]) %>%
+               select(state, avg),
+             by = c("state" = "state")) %>%
+  inner_join(policy %>%
+               filter(year == 2016) %>%
+               select(state, personaltax_yearadopted) %>%
+               mutate(state = state.abb[match(state, state.name)]) %>%
+               mutate(personaltax = ifelse(is.na(personaltax_yearadopted), 
+                                                       FALSE, TRUE)),
+             by = c("state" = "state")) %>%
+  inner_join(pop_by_state %>%
+               filter(year == 2016),
+             by = c("state", "state")) %>%
+  mutate(label = ifelse((panels_per_10k > 50 | avg > 6), state, "")) %>%
+  ggplot(aes(x = avg, y = panels_per_10k)) +
+  geom_point(aes(color = personaltax, size = total_pop)) +
+  geom_text_repel(aes(label = label)) +
+#  facet_grid(. ~ personaltax) +
+  labs(x = "Average Annual DNI (kWh/m2/day)",
+       y = "Solar Panels per 10,000 people") +
+  theme_minimal()
+
+```
+
+Alternative hypothesis: rich states OR sunny states install solar panels
+
+
+
+
+
+
+
+
+
+
