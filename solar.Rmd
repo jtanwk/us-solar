@@ -153,7 +153,7 @@ ggsave(here('output', 'output-intermediate', 'irradiance_by_state_region.pdf'),
 # Solar Panel Installations per 10K people by State, 1969-2016
 
 ## Import and prepare data
-```{r panels-import, warning=FALSE, message=FALSE}
+```{r panels-import, results='hide'}
 # Import solar panel data
 panels_df <- read_csv(here('data', 'data-solar-panels', 'openpv_all.csv'),
                       col_types = cols_only(state = "c",
@@ -172,7 +172,7 @@ head(panels_df)
 
 Next, we need to get population data to scale our installation counts by. The metric I'm aiming for is "number of solar panel installations per 100,000 people".
 
-```{r pop-import, message=FALSE}
+```{r pop-import, results='hide'}
 # Prepare population data from non-separated formats
 # Source: https://seer.cancer.gov/popdata/popdic.html
 pop_df <- read_csv(here('data', 'data-population-estimates',
@@ -237,8 +237,7 @@ panels_cumul %>%
   filter(!is.na(region)) %>%
   filter(year == 2016) %>%
   ggplot(aes(x = reorder(state, -panels_per_10k), 
-             y = panels_per_10k,
-             fill = region)) +
+             y = panels_per_10k)) +
   geom_bar(stat = 'identity',
            show.legend = FALSE) +
   facet_grid(. ~ region, 
@@ -304,7 +303,7 @@ ggsave(here('output', 'output-intermediate', 'panels_by_state_facet.pdf'),
 
 ## Import and prepare data
 
-```{r tax-import}
+```{r tax-import, results='hide', warning=FALSE}
 policy <- read_csv(here('data', 'data-state-policies', 
                         'correlatesofstatepolicyprojectv2_1.csv')) %>%
   select(c('state', 'year', 
@@ -323,7 +322,7 @@ policy <- read_csv(here('data', 'data-state-policies',
 
 ## Which states provide tax credits for renewable energy systems? And for how long?
 
-```{r tax-plot-1}
+```{r tax-plot-1, fig.width=3, fig.height=4}
 # Heatmap of policy adoption == True by state/year 
 # Allows for non-continuous periods of adoption (e.g. if state stops policy)
 policy %>%
