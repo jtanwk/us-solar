@@ -11,6 +11,7 @@ library(tidyverse)
 library(magrittr)
 library(lubridate)
 library(ggrepel)
+library(ggExtra)
 library(naniar)
 library(here)
 library(readxl)  
@@ -352,6 +353,8 @@ ggsave(here('output', 'output-intermediate', 'policy_by_state_year.pdf'),
        width = 6, height = 8)
 ```
 
+
+
 ## Number of states with personal renewable tax credits by year
 
 ```{r tax-plot-2}
@@ -384,7 +387,8 @@ policy_by_start_year <- policy %>%
   ungroup() %>%
   mutate(years_since = 2018 - tax_start_year) %>%
   mutate(state = state.abb[match(state, state.name)]) %>%
-  left_join(panels_cumul %>% filter(year == 2016) %>% select(state, panels_per_10k))
+  left_join(panels_cumul %>% filter(year == 2016) %>% select(state, panels_per_10k),
+            by = c("state" = "state"))
 
 # Scatterplot using geom_miss_point - how do I label the missing points?
 policy_by_start_year %>%
