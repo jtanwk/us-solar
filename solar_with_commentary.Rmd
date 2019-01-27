@@ -21,11 +21,11 @@ library(readxl)
 
 # Introduction
 
-Investment in renewable energy systms is a fascinating policy area. It's one of the few that feature the interplay of energy as a national utility, yet with semi-reliance on individuals and corporations as contributors to industry supply - e.g. in installing solar panels or, at a greater scale, solar farms. 
+Investment in renewable energy is such a fascinating policy area. It's one of the few that feature the interplay of energy as a national utility, yet with semi-reliance on individuals and corporations as contributors to industry supply - e.g. in installing solar panels or, at a greater scale, solar farms. 
 
-It also appears that much of the national conversation around renewable energy revolves around switching from consuming fuel to low-emission alternatives (say, a regular petrol car vs. a Tesla, or a city bus system switching to electric buses). In many cases, this makes sense - the Department of Energy claims that ["electricity is less expensive than gasoline and [electric vehicles] are more efficient than gasoline vehicles"](https://www.energy.gov/eere/electricvehicles/saving-fuel-and-vehicle-costs). 
+Much of the national conversation around renewable energy today tends to revolve around switching from gasoline power to low-emission alternatives (say, a regular petrol car vs. a Tesla, or a city transit system switching to electric buses). In many cases, this makes sense - the Department of Energy states that ["electricity is less expensive than gasoline and [electric vehicles] are more efficient than gasoline vehicles"](https://www.energy.gov/eere/electricvehicles/saving-fuel-and-vehicle-costs). 
 
-More efficient or not, however, this still shifts the energy load from gasoline to the electrical grid. The *generation* of energy from renewable sources is a critical part of reducing emissions when we as a species increasingly consume more and more energy (looking at you, bitcoin miners). The question I'm more preoccupeid with is: where is all this energy coming from? 
+More efficient or not, however, this still shifts the energy load from gasoline to the electrical grid, which itself is mostly generated from non-renewable sources. The *generation* of energy from renewable sources is a critical part of reducing emissions when we as a species increasingly consume more and more energy (looking at you, bitcoin miners). The question I'm more preoccupied with is: where is all this energy coming from? 
 
 # Where all this energy is coming from
 
