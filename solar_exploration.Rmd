@@ -1,9 +1,9 @@
 ---
 title: "Solar Panels"
-output: html_notebook
+output: html_document
 ---
 
-# Setup 
+# Setup and test
 
 ```{r setup, message=FALSE}
 # Setup
@@ -165,8 +165,6 @@ panels_df <- read_csv(here('data', 'data-solar-panels', 'openpv_all.csv'),
 panels_df %<>%
   mutate(date_installed = as.Date(date_installed, format = '%m/%d/%Y')) %>%
   mutate(year_installed = year(date_installed))
-
-# how do I turn off read_csv's warnings? data seems to be fine 
 
 head(panels_df)
 ```
