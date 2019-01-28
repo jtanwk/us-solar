@@ -167,7 +167,9 @@ gen %>%
                select(StateCode, avg),
              by = c("StateCode" = "StateCode")) %>% 
   filter(total_btu != 0) %>%  # SD and ND mess with log scale
-  mutate(highlight = ifelse(StateCode %in% c("NY", "MA", "NJ"), TRUE, FALSE)) %>%
+  mutate(region = state.region[match(StateCode, state.abb)]) %>%
+  mutate(highlight = ifelse(StateCode %in% c("NY", "MA", "NJ"), "2",
+                            ifelse(region == "Northeast", "1", "0"))) %>%
   ggplot(aes(x = avg, y = total_btu, label = StateCode, color = highlight)) +
   geom_point(show.legend = FALSE) +
   geom_text_repel(show.legend = FALSE) +
@@ -179,9 +181,9 @@ gen %>%
               se = FALSE,
               inherit.aes = FALSE) +
   scale_y_log10() +
-  scale_color_manual(values = c("grey", "red")) +
+  scale_color_manual(values = c("lightgrey", "black", "red")) +
   labs(title = "NY, MA, NJ give more than they get, relative to other states",
-       subtitle = "Northeast states - in particular New York, Massachussetts, and New Jersey - generated more \nsolar energy in 2016 than what their annual solar irradiance levels might suggest. \nNortheast states are highlighted in red below.",
+       subtitle = "Northeast states - New York, Massachussetts, and New Jersey in red below - generated more \nsolar energy in 2016 than what their annual solar irradiance levels might suggest. \nOther Northeast states are highlighted in black.",
        x = "Average Annual Global Horizonal Irradiance (kWh/m^2/day)",
        y = "Log Solar Energy Generated in 2016 (BTU)",
        caption = "Data sources: NREL (US Dept of Energy), SEDS (U.S. Energy Information Administration)") +
