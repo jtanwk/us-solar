@@ -212,7 +212,7 @@ An easy way for a state to have lots of solar panels is to have lots of people, 
 
 This data is normally collected by the Census bureau, but the [National Cancer Institute](https://seer.cancer.gov/popdata/download.html) has a nicely-bundled dataset that combines census counts and inter-census estimates from 1969 to 2016. So that is the dataset we'll use.  
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, results='hide'}
 # Import population data
 pop <- read_csv(here('data', 'data-population-estimates',
                      'us.1969_2016.19ages.adjusted.txt'),
