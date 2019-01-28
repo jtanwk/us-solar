@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Shining a Light on Solar Panel Usage in the U.S."
 output: html_notebook
 ---
 
@@ -44,7 +44,7 @@ gen %<>%
 
 Why focus on solar energy? Of all the common sources of renewable energy - solar, wind, hydroelectric, geothermal, etc. - solar energy fascinates me because it's so *participatory*. You can't install a wind turbine in your backyard or dam up the local river, but you could invest in a set of solar panels for your house fairly easily. In the SEDS data, solar energy is also the only renewable source of energy to have a line item for "generation by small-scale applications in the residential sector".
 
-```{r, fig.align = 'center', fig.width = 6, fig.height = 8}
+```{r, fig.align = 'center', fig.width = 8, fig.height = 6}
 gen %>%
   group_by(Year, source) %>%
   summarize(total_btu = sum(Data)) %>%
@@ -151,16 +151,13 @@ gen %>%
   filter(source == "Residential") %>%
   group_by(StateCode) %>%
   summarize(total_btu = sum(Data)) %>%
-  mutate(region = state.region[match(StateCode, state.abb)]) %>%
-  mutate(region = factor(region,
-                         levels = c("West", "Northeast", "South", "North Central"))) %>%
   inner_join(ghi %>% 
                mutate(StateCode = state.abb[match(State, state.name)]) %>%
                filter(period == "Ann", !is.na(avg)) %>%
                select(StateCode, avg),
              by = c("StateCode" = "StateCode")) %>% 
   filter(total_btu != 0) %>%  # SD and ND mess with log scale
-  mutate(highlight = ifelse(region == "Northeast", TRUE, FALSE)) %>%
+  mutate(highlight = ifelse(StateCode %in% c("NY", "MA", "NJ"), TRUE, FALSE)) %>%
   ggplot(aes(x = avg, y = total_btu, label = StateCode, color = highlight)) +
   geom_point(show.legend = FALSE) +
   geom_text_repel(show.legend = FALSE) +
@@ -263,12 +260,12 @@ panels_by_pop %<>%
 
 Now, let's briefly check which states have the largest number of residential solar panels installed relative to the number of residents they have.
 
-```{r, fig.align = "center", fig.width = 6, fig.height = 8}
+```{r, fig.align = "center", fig.width = 8, fig.height = 6}
 panels_by_pop %>%
   mutate(region = state.region[match(state, state.abb)]) %>%
   mutate(region = factor(region,
                          levels = c("West", "Northeast", "South", "North Central"))) %>%
-  mutate(highlight = ifelse(region == "Northeast", TRUE, FALSE)) %>%
+  mutate(highlight = ifelse(state %in% c("NY", "MA", "NJ"), TRUE, FALSE)) %>%
   filter(!is.na(region)) %>%
   filter(year == 2016) %>%
   ggplot(aes(x = reorder(state, -panels_per_10k), 
@@ -281,12 +278,13 @@ panels_by_pop %>%
              space = "free_x") +
   scale_fill_manual(values = c('grey', 'red')) +
   labs(title = 'Northeast states are surprisingly well-represented in solar panel counts',
-       subtitle = 'Total solar panel installations per 10,000 people (cumulative as of 2016)',
+       subtitle = 'Adjusting for state population size, NY, MA, and NJ (marked in red below) respectively have the 
+3rd, 5th and 10th-most residential solar panel installations per capita.',
        x = 'State',
        y = 'Panels per 10,000 people',
        caption = 'Data sources: NREL (US Dept of Energy), National Cancer Institute') +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
         panel.grid.minor = element_blank(),
         panel.grid.major.x = element_blank())
 ```
