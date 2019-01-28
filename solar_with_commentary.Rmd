@@ -1,5 +1,7 @@
 ---
 title: "Shining a Light on Solar Panel Usage in the U.S."
+author: "Jonathan Tan"
+date: "1/27/2019"
 output: html_notebook
 ---
 
@@ -95,13 +97,21 @@ gen %>%
             size = 3.3) +
   geom_hline(yintercept = 1, 
              color = "grey") +
+  annotate("segment", x = "AL", xend = "AL", y = 1.2, yend = 3.2, 
+           arrow = arrow(length = unit(0.2, "cm")),
+           color = "grey40") +
+  annotate("segment", x = "AL", xend = "AL", y = 0.8, yend = 0.3, 
+           arrow = arrow(length = unit(0.2, "cm")),
+           color = "grey40") +
+  annotate("text", x = "WY", y = 1.2, label = "Generated \nmore solar energy \nthan average",
+           color = "grey40",size = 3, hjust = 0) +
+  annotate("text", x = "WY", y = 0.8, label = "Generated \nless solar energy \nthan average",
+           color = "grey40", size = 3, hjust = 1) +
   theme_minimal() + 
   theme(panel.grid.minor = element_blank(),
         panel.grid.major.y = element_blank(),
         axis.text.y = element_blank()) +
   coord_flip()
-
-# TODO: Add annotations around 1x line with interpretation of horizontal position
 ```
 
 Unsurprisingly, California was the single largest **residential** generator of solar energy in 2016 - in fact, California and Arizona combined generated more than half of the national total. What is a bit more of a surprise is how high on the list the Northeast states like New York (#3), New Jersey (#4), and Massachussetts (#6) lie, particularly in comparison to known sunny states like Nevada (#9), Texas (#10) and Florida (#13).
@@ -183,7 +193,7 @@ A rough upward trend seems to hold for the Western states, although there seems 
 
 While there are plenty of factors that impact the efficiency with which you generate solar energy - tilt, weather, temperature, age of technology, etc. - my immediate guess is that the most straightforward way to ramp up your output is to have more solar panels. 
 
-# Do states with the most solar panels generate the most energy?
+# Which states have the most solar panels?
 
 To answer this question, we'll use historical solar panel installation data from [OpenPV](https://openpv.nrel.gov/), the open-source database maintained by NREL. 
 
