@@ -46,7 +46,7 @@ gen %<>%
 
 Why focus on solar energy? Of all the common sources of renewable energy - solar, wind, hydroelectric, geothermal, etc. - solar energy fascinates me because it's so *participatory*. You can't install a wind turbine in your backyard or dam up the local river, but you could invest in a set of solar panels for your house fairly easily. In the SEDS data, solar energy is also the only renewable source of energy to have a line item for "generation by small-scale applications in the residential sector".
 
-```{r, fig.align = 'center', fig.width = 8, fig.height = 6}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
   group_by(Year, source) %>%
   summarize(total_btu = sum(Data)) %>%
@@ -73,7 +73,7 @@ gen %>%
 
 A logical next question is: where are all these residential solar panels? 
 
-```{r, fig.align='center', fig.width = 8, fig.height = 8}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 4}
 gen %>%
   filter(Year == max(Year)) %>%
   filter(source == "Residential") %>%
@@ -155,7 +155,7 @@ ghi %<>%
 
 So how does solar energy generation relate to solar irradiance? 
 
-```{r, fig.align="center", fig.width = 8, fig.height = 6}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
   filter(Year == max(Year)) %>%
   filter(source == "Residential") %>%
@@ -199,7 +199,7 @@ While there are plenty of factors that impact the efficiency with which you gene
 
 To answer this question, we'll use historical solar panel installation data from [OpenPV](https://openpv.nrel.gov/), the open-source database maintained by NREL. 
 
-```{r, message=FALSE, warning=FALSE, results='hide'}
+```{r, message = FALSE, warning = FALSE, results = 'hide'}
 # Import solar panel data
 panels <- read_csv(here('data', 'data-solar-panels', 'openpv_all.csv'),
                       col_types = cols_only(state = "c",
@@ -224,7 +224,7 @@ An easy way for a state to have lots of solar panels is to have lots of people, 
 
 This data is normally collected by the Census bureau, but the [National Cancer Institute](https://seer.cancer.gov/popdata/download.html) has a nicely-bundled dataset that combines census counts and inter-census estimates from 1969 to 2016. So that is the dataset we'll use.  
 
-```{r, message=FALSE, warning=FALSE, results='hide'}
+```{r, message = FALSE, warning = FALSE, results = 'hide'}
 # Import population data
 pop <- read_csv(here('data', 'data-population-estimates',
                      'us.1969_2016.19ages.adjusted.txt'),
@@ -272,7 +272,7 @@ panels_by_pop %<>%
 
 Now, let's briefly check which states have the largest number of residential solar panels installed relative to the number of residents they have.
 
-```{r, fig.align = "center", fig.width = 8, fig.height = 6}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 3}
 panels_by_pop %>%
   mutate(region = state.region[match(state, state.abb)]) %>%
   mutate(region = factor(region,
@@ -309,7 +309,7 @@ My broad hypothesis is that installing a solar panel system is primarily a finan
 
 Here, I'm interested in the effect of state and federal policies that provide tax incentives for installing renewable energy systems. We know that the federal solar tax credit incentive was implemented in 2005 and is still in effect. For individual states, we'll have to look at policy adoption data, courtesy of the [Institute for Public Policy and Social Research (IPPSR) at Michigan State University](http://ippsr.msu.edu/public-policy/correlates-state-policy). 
 
-```{r, message=FALSE, warning=FALSE, results='hide'}
+```{r, message = FALSE, warning = FALSE, results = 'hide'}
 # Import policy adoption data, selecting variables related to renewable energy
 policy <- read_csv(here('data', 'data-state-policies', 
                         'correlatesofstatepolicyprojectv2_1.csv')) %>%
@@ -328,7 +328,7 @@ policy <- read_csv(here('data', 'data-state-policies',
 
 First, let's look at which states provided renewable income tax credits (ITCs) specifically for individuals (rather than corporate tax credits) and when: 
 
-```{r, fig.align = "center", fig.width = 6, fig.height = 8}
+```{r, fig.align = 'center', fig.width = 3, fig.height = 4}
 policy %>%
   group_by(state) %>%
   filter(year >= 1990) %>%
