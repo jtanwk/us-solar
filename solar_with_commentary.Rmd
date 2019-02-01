@@ -13,7 +13,6 @@ library(magrittr) # extended pipe functionality
 library(lubridate) # dealing with date objects
 library(ggrepel) # for neater text labels
 library(gghighlight) # for easier highlighting
-library(GGally) # for scatterplot matrices
 library(here) 
 library(readxl)  
 ```
@@ -47,25 +46,18 @@ gen %<>%
                                      ifelse(energy_type == "GE", "Geothermal", 
                                             "Hydroelectric")))) %>%
   mutate(source = ifelse(source == "CCP", "Commercial",
-                         ifelse(source == "EGP", "Electric Power",
+                         ifelse(source == "EGP", "Electric Utility",
                                 ifelse(source == "ICP", "Industrial",
                                        "Residential"))))
-
-  # filter(MSN %in% c("SOCCP", "SOEGP", "SOICP", "SOR7P")) %>% # solar codes
-  # filter(!StateCode %in% c("US", "X3", "X5")) %>% # filter out Total and Offshore
-  # mutate(source = ifelse(MSN == "SOCCP", "Commercial", 
-  #                        ifelse(MSN == "SOEGP", "Electric Power",
-  #                               ifelse(MSN == "SOICP", "Industrial",
-  #                                      "Residential"))))
 ```
 
 Why focus on solar energy? Of all the common sources of renewable energy - solar, wind, hydroelectric, geothermal, etc. - solar energy fascinates me because it's so *participatory*. You can't install a wind turbine in your backyard or dam up the local river, but you could invest in a set of solar panels for your house fairly easily. In the SEDS data, solar energy is also the only renewable source of energy to have a line item for "generation by small-scale applications in the residential sector".
 
-```{r, warning=FALSE, fig.align = 'center', fig.width = 8, fig.height = 6}
+```{r, warning=FALSE, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
   group_by(Year, source, energy_type) %>%
   summarize(total_btu = sum(Data)) %>% 
-  mutate(full_source = paste(energy_type, source)) %>%
+  mutate(full_source = paste0(energy_type, ", ", source)) %>%
   mutate(highlight = ifelse(source == "Residential", "2",
                             ifelse(energy_type == "Solar", "1", "0"))) %>% 
   ##### PLOT BEGINS
@@ -88,13 +80,15 @@ gen %>%
   theme_minimal() + 
   theme(panel.grid.minor = element_blank(),
         panel.grid.major.x = element_blank()) + 
-  scale_y_log10() +
-  xlim(1960, 2030)
+  scale_y_log10(breaks = c(10, 100, 1000, 10000, 100000),
+                labels = c("10", "100", "1K", "10K", "100K")) +
+  scale_x_continuous(limits = c(1960, 2030),
+                     breaks = seq(1960, 2010, 10))
 ```
 
 A logical next question is: where are all these residential solar panels? 
 
-```{r, fig.align = 'center', fig.width = 8, fig.height = 8}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 4}
 gen %>%
   filter(Year == max(Year)) %>%
   filter(source == "Residential") %>%
@@ -177,7 +171,7 @@ ghi %<>%
 
 So how does solar energy generation relate to solar irradiance? 
 
-```{r, fig.align = 'center', fig.width = 8, fig.height = 6}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
   filter(Year == max(Year)) %>%
   filter(source == "Residential") %>%
@@ -208,7 +202,7 @@ gen %>%
   labs(title = "NY, MA, NJ give more than they get, relative to other states",
        subtitle = "Northeast states - New York, Massachussetts, and New Jersey in red below - generated more \nsolar energy in 2016 than what their annual solar irradiance levels might suggest. \nOther Northeast states are highlighted in black.",
        x = "Average Annual Global Horizonal Irradiance (kWh/m^2/day)",
-       y = "Log Solar Energy Generated in 2016 (BTU)",
+       y = "Log Solar Energy Generated in 2016 (BTUs)",
        caption = "Data sources: NREL (US Dept of Energy), SEDS (U.S. Energy Information Administration)") +
   theme_minimal() +
   theme(panel.grid.minor = element_blank())
@@ -288,14 +282,14 @@ panels_by_pop <- panels %>%
 # 3b. Calculate number of panels per 10,000 people
 panels_by_pop %<>%
   inner_join(pop, by = c('state', 'year')) %>%
-  filter(year != 1969) %>%
+  # filter(year != 1969) %>%
   mutate(sum_n = ave(n, state, FUN = cumsum)) %>%
   mutate(panels_per_10k = (sum_n / total_pop) * 10000)
 ```
 
 Now, let's briefly check which states have the largest number of residential solar panels installed relative to the number of residents they have.
 
-```{r, fig.align = 'center', fig.width = 8, fig.height = 6}
+```{r, fig.align = 'center', fig.width = 4, fig.height = 3}
 panels_by_pop %>%
   mutate(region = state.region[match(state, state.abb)]) %>%
   mutate(region = factor(region,
@@ -462,7 +456,7 @@ policy %<>%
 
 Alright. Now that that's taken care of, let's look at which states provided renewable tax incentives specifically for residential photovoltaic systems (i.e. household-scale solar panels) and when: 
 
-```{r, warning=FALSE, message=FALSE, fig.align = 'center', fig.width = 6, fig.height = 8}
+```{r, warning=FALSE, message=FALSE, fig.align = 'center', fig.width = 3, fig.height = 4}
 policy %>%
   filter(sector == "Residential") %>% 
   filter(!program_type %in% c("Corporate Tax Credit")) %>%
@@ -507,7 +501,7 @@ policy %>%
        subtitle = "Massachussetts, New York, and Iowa were the first states to offer tax \nincentives to households that installed solar panels. Most other states \nfollowed after the federal Solar Investment Tax Credits (ITCs) began in 2006.",
        x = "Year",
        y = "State",
-       caption = "Data source: DSIRE (N.C. Clean Energy Technology Center)") +
+       caption = "Data source: DSIRE (NC State Univ.)") +
   theme(panel.grid = element_blank(),
         legend.position = "top")
 ```
@@ -515,7 +509,7 @@ policy %>%
 It appears that the availability of renewable ITCs only tell part of the story. Among the states that we were previously interested in, Massachussetts (along with Iowa and New Hampshire) was among the earliest states in the country to implement tax incentive programs in the form of property tax exemption between 1975 and 1980. New York only implemented a similar property tax exemption in 1988. Meanwhile, the earliest incentive program available to the residential sector in New Jersey was the adoption of Solar Renewable Energy Certificates (SREC) in 2004, where the state could purchase surplus solar energy from households via SRECs in order to meet the renewable energy production quota set in its Renewable Portfolio Standard. 
 
 
-```{r}
+```{r, include = FALSE}
 # TODO: Put this in annotation above
 policy %>%
   filter(state == "New Jersey") %>%
@@ -523,6 +517,80 @@ policy %>%
   filter(!program_type %in% c("Corporate Tax Credit")) %>%
   arrange(start_date) %>%
   head(6)
+```
+
+How does the availability of these incentives correspond with solar panel installation rates in each state? Do installation rates increase when they're financially incentivized?
+
+```{r, warning=FALSE, message=FALSE, fig.align = 'center', fig.width = 5, fig.height = 4}
+panels_by_pop %>%
+  select(state, year, panels_per_10k) %>%
+  ggplot() +
+  geom_step(aes(x = year, y = panels_per_10k, group = state)) +
+  facet_wrap(. ~ state) +
+  geom_rect(data = policy %>%
+              filter(sector == "Residential") %>%
+              filter(!program_type %in% c("Corporate Tax Credit")) %>%
+              select(state, start_date, end_date) %>%
+              mutate(state = state.abb[match(state, state.name)]) %>%
+              filter(!is.na(state)) %>%
+              mutate(start_year = year(start_date),
+                     end_year = ifelse(end_date > now(), NA, year(end_date))) %>%
+              select(state, start_year, end_year) %>%
+              group_by(state) %>%
+              mutate(start_year = min(start_year),
+                     end_year = max(end_year)) %>%
+              mutate(end_year = ifelse(is.na(end_year), 2019, end_year)) %>%
+              unique(),
+            aes(xmin = start_year, xmax = end_year, ymin = 0, ymax = Inf),
+            fill = "goldenrod1",
+            alpha = 0.5,
+            show.legend = FALSE) +
+  scale_y_log10(breaks = c(0.01, 1, 100),
+                labels = c(0.01, 1, 100)) +
+  scale_x_continuous(breaks = c(1990, 2010)) +
+  labs(title = "No clear link between state tax incentives and solar panel uptake",
+       subtitle = "Many states appear to have periods of solar panel growth completely unrelated to the period at which state-based tax incentives \nfor residential renewable energy systems are available. These periods are marked in yellow below.",
+       x = "Year",
+       y = "Log Panels per 10,000 people",
+       caption = "Data sources: NREL (US Dept of Energy), DSIRE (NC State Univ.)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+```
+
+
+```{r, fig.align = 'center', fig.width = 4, fig.height = 4}
+panels_by_pop %>%
+  select(state, year, panels_per_10k) %>%
+  mutate(region = state.region[match(state, state.abb)]) %>%
+  filter(!is.na(region)) %>%
+  group_by(year) %>%
+  arrange(year, desc(panels_per_10k)) %>%
+  mutate(ranking = row_number()) %>%
+  mutate(highlight = ifelse(state %in% c("NY", "MA", "NJ"), TRUE, FALSE)) %>%
+  ggplot(aes(x = year, y = ranking, group = state, color = highlight)) +
+  geom_line(na.rm = TRUE,
+            show.legend = FALSE) +
+  geom_point(na.rm = TRUE,
+             show.legend = FALSE) +
+  geom_text(data = . %>% filter(year == 1995),
+            aes(x = year, y = ranking, label = state, color = highlight),
+            nudge_x = -1,
+            size = 3.5,
+            show.legend = FALSE) +
+  geom_text(data = . %>% filter(year == 2016),
+            aes(x = year, y = ranking, label = state, color = highlight),
+            nudge_x = 1,
+            size = 3.5,
+            show.legend = FALSE) +
+  scale_y_reverse() +
+  scale_x_continuous(limits = c(1993, 2018),
+                     breaks = seq(1995, 2015, 5)) +
+  scale_color_manual(values = c("lightgrey", "red")) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+  
 ```
 
 
