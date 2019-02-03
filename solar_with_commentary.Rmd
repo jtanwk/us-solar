@@ -2,7 +2,9 @@
 title: "Shining a Light on Solar Energy Generation in the U.S."
 author: "Jonathan Tan"
 date: "1/27/2019"
-output: html_notebook
+output: 
+  html_notebook:
+    code_folding: hide
 ---
 
 ```{r setup, results = 'hide'}
@@ -24,13 +26,7 @@ theme_custom <- function(base_size = 12, base_family = "",
   theme_minimal(base_size = base_size, base_family = base_family,
              base_line_size = base_line_size,
              base_rect_size = base_rect_size) %+replace%
-    theme(
-          # plot.background = element_rect(fill = NA),
-          # panel.background = element_rect(fill = NA),
-          # panel.border = element_rect(color = "#FFFFFF", # CAN'TGETRIDOFTHIS
-          #                             fill = NA,
-          #                             size = 5),
-          panel.grid.minor = element_blank(),
+    theme(panel.grid.minor = element_blank(),
           panel.grid.major = element_line(color = "#EEEEEE"),
           plot.title = element_text(family = "Asap SemiBold",
                                     size = 16,
