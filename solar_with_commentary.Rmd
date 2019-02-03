@@ -5,7 +5,7 @@ date: "1/27/2019"
 output: html_notebook
 ---
 
-```{r setup}
+```{r setup, results = 'hide'}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
@@ -24,11 +24,12 @@ theme_custom <- function(base_size = 12, base_family = "",
   theme_minimal(base_size = base_size, base_family = base_family,
              base_line_size = base_line_size,
              base_rect_size = base_rect_size) %+replace%
-    theme(plot.background = element_rect(fill = NA),
-          panel.background = element_rect(fill = NA),
-          panel.border = element_rect(color = "#FFFFFF", # CAN'TGETRIDOFTHIS
-                                      fill = NA,
-                                      size = 5),
+    theme(
+          # plot.background = element_rect(fill = NA),
+          # panel.background = element_rect(fill = NA),
+          # panel.border = element_rect(color = "#FFFFFF", # CAN'TGETRIDOFTHIS
+          #                             fill = NA,
+          #                             size = 5),
           panel.grid.minor = element_blank(),
           panel.grid.major = element_line(color = "#EEEEEE"),
           plot.title = element_text(family = "Asap SemiBold",
@@ -603,7 +604,6 @@ policy %>%
   #            scales = "free_y",
   #            space = "free_y") +
   scale_fill_manual(breaks = c(TRUE),
-#                    values = c('gray90', 'goldenrod1'),
                     values = c("#CFCFCF", "#EE4A1E"),
                     name = "Residential ITCs in Effect?") +
   scale_x_continuous(position = "top",
@@ -681,9 +681,7 @@ panels_by_pop %>%
        y = "Log Panels per 10,000 people",
        caption = "Data sources: NREL (US Dept of Energy), DSIRE (NC State Univ.)") +
   theme_custom() +
-  theme(panel.grid = element_blank(),
-        panel.border = element_blank(),
-        panel.ontop = TRUE)
+  theme(panel.grid = element_blank())
 ```
 
 
