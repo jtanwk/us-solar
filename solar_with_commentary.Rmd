@@ -7,7 +7,7 @@ output:
     code_folding: hide
 ---
 
-```{r setup, results = 'hide'}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
@@ -18,7 +18,9 @@ library(gghighlight) # for easier highlighting
 library(extrafont) # for... extra fonts
 library(here) 
 library(readxl)  
+```
 
+```{r}
 # Set custom theme
 theme_custom <- function(base_size = 12, base_family = "", 
                          base_line_size = base_size/22,
@@ -56,6 +58,7 @@ theme_custom <- function(base_size = 12, base_family = "",
                                      color = "#3F3F3F"))
 }
 ```
+
 
 # Introduction
 
@@ -134,7 +137,7 @@ gen %>%
   theme(panel.grid.major.x = element_blank())
 ```
 
-A logical next question is: where are all these residential solar panels? 
+A logical next question is: who's actually capturing all this solar energy? 
 
 ```{r, fig.align = 'center', fig.width = 4, fig.height = 4}
 gen %>%
@@ -199,6 +202,8 @@ gen %>%
   theme(panel.grid.major.y = element_blank(),
         axis.text.y = element_blank()) +
   coord_flip()
+
+# TODO: Add explanatory annotations to extremes, perhaps with goofy comparisons
 ```
 
 Unsurprisingly, California was the single largest **residential** generator of solar energy in 2016 - in fact, California and Arizona combined generated more than half of the national total. What is a bit more of a surprise is how high on the list the Northeast states like New York (#3), New Jersey (#4), and Massachussetts (#6) lie, particularly in comparison to known sunny states like Nevada (#9), Texas (#10) and Florida (#13).
