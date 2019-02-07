@@ -150,10 +150,9 @@ county_map %>%
           size= 0.1) +
   coord_sf(xlim = c(-1895516.48, 2210772.95),
          ylim = c(-2073330.36, 783925.19)) +
-  scale_fill_gradient(#low = "#000000", high = "#B000B5",
-                      low = "#5D2BF0", high = "#FF810F",
+  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
                       #low = "#1949E3", high = "#EE4A1E",
-                      na.value = "#DDDDDD",
+                      na.value = "#FFFFFF",
                       name = "Panels per 10,000 people",
                       breaks = seq(0, 400, 50),
                       guide = guide_legend(
@@ -171,7 +170,7 @@ county_map %>%
   theme(panel.grid = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
         axis.title = element_blank(),
-        legend.position = "top",
+        legend.position = "bottom",
         legend.title = element_text(size = 8))
 
 ```
