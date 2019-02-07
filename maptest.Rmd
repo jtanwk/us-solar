@@ -1,0 +1,257 @@
+---
+title: "Map Test"
+author: "Jonathan Tan"
+date: "2/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)
+library(sf)
+library(zipcode) # for geocoding zipcodes
+library(noncensus) # for more geocoding data 
+```
+
+# Import solar panel data and population data
+
+```{r, message=FALSE, warning=FALSE}
+# Import solar panel data
+panels <- read_csv(here::here('data', 'data-solar-panels', 'openpv_all.csv'),
+                  col_types = cols_only(state = "c",
+                                        date_installed = "c",
+                                        zipcode = "c",
+                                        size_kw = "n",
+                                        cost = "n",
+                                        cost_per_watt = "n",
+                                        install_type = "c"),
+                      quoted_na = TRUE)
+
+# Clean up date field and extract year 
+panels %<>%
+  mutate(date_installed = as.Date(date_installed, format = '%m/%d/%Y')) %>%
+  mutate(year_installed = year(date_installed)) %>%
+  mutate(cost = as.numeric(cost))
+
+# Clean up install_type labels for residential panels 
+panels %<>%
+  mutate(install_type = tolower(install_type)) %>%
+  mutate(install_type = ifelse(install_type == "residential/sf", "residential", install_type))
+
+# Import population data
+pop <- read_csv(here::here('data', 'data-population-estimates',
+                     'us.1969_2016.19ages.adjusted.txt'),
+                col_types = 'c',
+                col_names = FALSE)
+
+# Extract individual variables from non-separated text data
+# Then discard demographic characteristics and summarize by year-state
+pop %<>%
+  mutate(year = as.numeric(substr(X1, 1, 4)),
+         state = substr(X1, 5, 6),
+         state_fips = substr(X1, 7, 8),
+         county_fips = substr(X1, 9, 11),
+         seer_registry = substr(X1, 12, 13),
+         race = substr(X1, 14, 14),
+         origin = substr(X1, 15, 15),
+         sex = substr(X1, 16, 16),
+         age = as.numeric(substr(X1, 17, 18)),
+         population = as.numeric(substr(X1, 19, 27))) %>%
+  group_by(year, state) %>%
+  summarize(total_pop = sum(population))
+
+# 1. Group by year and fill in empty years with 0 installs
+panels_by_pop <- panels %>%
+  filter(install_type == "residential") %>%
+  group_by(state, year_installed) %>%
+  count() %>%
+  ungroup() %>%
+  complete(state, year_installed, fill = list(n = 0)) %>%
+  rename(year = year_installed)
+
+# 2. Inner-join population data
+# 3a. Get cumulative sum of installations by state
+# 3b. Calculate number of panels per 10,000 people
+panels_by_pop %<>%
+  inner_join(pop, by = c('state', 'year')) %>%
+  # filter(year != 1969) %>%
+  mutate(sum_n = ave(n, state, FUN = cumsum)) %>%
+  mutate(panels_per_10k = (sum_n / total_pop) * 10000)
+```
+
+# Pull zipcode-level map 
+
+Zipcode-level data downloaded from https://www.census.gov/geo/maps-data/data/cbf/cbf_zcta.html
+County-level data downloaded from https://www.census.gov/geo/maps-data/data/cbf/cbf_counties.html
+
+```{r}
+# Try state-level first
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+us_states <- ne_states(country = "united states of america",
+                       returnclass = "sf")
+```
+
+
+```{r}
+# Read county-level shapefiles
+county_map <- st_read(here::here('data', 'shapefiles-usa', 'cb_2017_us_county_500k'))
+
+# Get county and zip code fips code data
+# data(counties)
+data(zip_codes)
+
+# zip_codes FIPS data is in numeric formats, drops leading 0s
+zip_codes %<>%
+  mutate(fips = as.character(fips)) %>%
+  mutate(fips = ifelse(nchar(fips) == 4, 
+                       paste0("0", fips),
+                       fips))
+
+# Get panel count by FIPS code
+panels %>%
+  filter(install_type == "residential") %>%
+  select(zipcode) %>%
+  left_join(zip_codes, by = c("zipcode" = "zip")) %>%
+  group_by(fips) %>%
+  count()
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+county_map %>%
+  # st_transform(4326) %>%
+  st_transform(2163) %>%
+  mutate(COUNTYFP = as.character(COUNTYFP)) %>%
+  left_join(panels %>%
+              filter(install_type == "residential") %>%
+              select(zipcode) %>%
+              left_join(zip_codes, by = c("zipcode" = "zip")) %>%
+              group_by(fips) %>%
+              count(),
+            by = c("GEOID" = "fips")) %>%
+  left_join(counties %>%
+              mutate(GEOID = paste0(state_fips, county_fips)) %>%
+              select(GEOID, population),
+            by = c("GEOID" = "GEOID")) %>%
+  mutate(panels_per_10k = ((n * 10000) / population)) %>%
+  ggplot() +
+  geom_sf(aes(fill = panels_per_10k),
+          color = "transparent") + 
+  # coord_sf(xlim = c(-124, -68),
+  #          ylim = c(26, 50)) +
+  geom_sf(data = us_states,
+          fill = "transparent",
+          color = "#FFFFFF",
+          size= 0.1) +
+  coord_sf(xlim = c(-1895516.48, 2210772.95),
+         ylim = c(-2073330.36, 783925.19)) +
+  scale_fill_gradient(#low = "#000000", high = "#B000B5",
+                      low = "#5D2BF0", high = "#FF810F",
+                      #low = "#1949E3", high = "#EE4A1E",
+                      na.value = "#DDDDDD",
+                      name = "Panels per 10,000 people",
+                      breaks = seq(0, 400, 50),
+                      guide = guide_legend(
+                        direction = "horizontal",
+                        keyheight = unit(2, units = "mm"),
+                        keywidth = unit(10, units = "mm"),
+                        title.position = "top",
+                        title.hjust = 0,
+                        label.hjust = 1,
+                        nrow = 1,
+                        byrow = TRUE,
+                        label.position = "bottom"
+                      )) +
+  theme_minimal() +
+  theme(panel.grid = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "top",
+        legend.title = element_text(size = 8))
+
+```
+
+
+```{r}
+panels %>%
+  filter(install_type == "residential") %>%
+  select(zipcode) %>%
+  left_join(zip_codes, by = c("zipcode" = "zip")) %>%
+  group_by(fips) %>%
+  count() %>%
+  left_join(counties %>%
+            mutate(GEOID = paste0(state_fips, county_fips)) %>%
+            select(GEOID, population),
+          by = c("fips" = "GEOID")) %>%
+  mutate(panels_per_10k = ((n * 10000) / population)) %>%
+  ggplot(aes(x = panels_per_10k)) +
+  geom_histogram(bins = 50) +
+  scale_x_log10() +
+  theme_minimal()
+```
+
+
+
+
+```{r}
+us_states %>%
+  st_transform(2163) %>%
+  left_join(panels_by_pop %>%
+              filter(year == 2016) %>%
+              select(state, panels_per_10k),
+            by = c("postal" = "state")) %>%
+  ggplot() +
+  geom_sf(aes(fill = panels_per_10k),
+          color = "white") +
+  coord_sf(xlim = c(-1895516.48, 2210772.95),
+           ylim = c(-2073330.36, 813925.19)) +
+  scale_fill_gradient(low = "#1949E3", high = "#EE4A1E",
+                      na.value = "#CFCFCF",
+                      name = "Panels per 10,000 people",
+                      guide = guide_legend(
+                        direction = "horizontal",
+                        keyheight = unit(2, units = "mm"),
+                        keywidth = unit(10, units = "mm"),
+                        title.position = "top",
+                        title.hjust = 0,
+                        label.hjust = 1,
+                        nrow = 1,
+                        byrow = TRUE,
+                        label.position = "bottom"
+                      )) +
+  theme_minimal() +
+  theme(panel.grid = element_line(color = "transparent"),
+        axis.text = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_text(size = 10))
+```
+
+```{r}
+us_states %>%
+  filter(!name %in% c("Alaska", "Hawaii")) %>%
+  st_set_crs(4326) %>%
+  st_transform(2163) %>%
+  ggplot() +
+  geom_sf(color = "#FFFFFF") +
+  geom_point(data = panels %>%
+               filter(install_type == "residential") %>%
+               group_by(zipcode) %>%
+               count() %>% 
+               left_join(zipcode, by = c("zipcode" = "zip")),
+             aes(x = longitude, y = latitude, size = n),
+             color = "#ee4a1e",
+             alpha = 0.1,
+             na.rm = TRUE) +
+  theme_minimal() +
+  theme(panel.grid = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+
+```
+
+

@@ -15,6 +15,7 @@ library(magrittr) # extended pipe functionality
 library(lubridate) # dealing with date objects
 library(ggrepel) # for neater text labels
 library(gghighlight) # for easier highlighting
+library(geofacet) # for making thing looks like the USA
 library(extrafont) # for... extra fonts
 library(here) 
 library(readxl)  
@@ -348,7 +349,9 @@ panels <- read_csv(here('data', 'data-solar-panels', 'openpv_all.csv'),
                       col_types = cols_only(state = "c",
                                             date_installed = "c",
                                             zipcode = "c",
-                                            cost = "c",
+                                            size_kw = "n",
+                                            cost = "n",
+                                            cost_per_watt = "n",
                                             install_type = "c"),
                       quoted_na = TRUE)
 
@@ -742,42 +745,42 @@ How does the availability of these incentives correspond with solar panel instal
 ```{r panels-vs-policy, warning=FALSE, message=FALSE, fig.align = 'center', fig.width = 5, fig.height = 4}
 # Plot of solar panel installation growth vs. 
 panels_by_pop %>%
-  mutate(statename = state.name[match(state, state.abb)]) %>%
-  left_join(policy %>%
-               filter(sector == "Residential") %>% 
-               filter(!program_type %in% c("Corporate Tax Credit")) %>%
-               group_by(state) %>%
-               mutate(start_year = year(min(start_date))) %>%
-               select(state, start_year) %>%
-               unique(),
-            by = c("statename" = "state")) %>%
-  select(state, year, start_year, panels_per_10k) %>%
+  select(state, year, panels_per_10k) %>%
+  mutate(region = state.region[match(state, state.abb)]) %>%
   ##### PLOT BEGINS 
   ggplot() +
   geom_step(aes(x = year, y = panels_per_10k)) +
-  facet_wrap(. ~ fct_reorder(state, start_year)) +
   geom_rect(data = policy %>%
               filter(sector == "Residential") %>%
               filter(!program_type %in% c("Corporate Tax Credit")) %>%
               select(state, start_date, end_date) %>%
               mutate(state = state.abb[match(state, state.name)]) %>%
               filter(!is.na(state)) %>%
+              mutate(region = state.region[match(state, state.abb)]) %>%
+              mutate(region = factor(region,
+                       levels = c("North Central", "West", "Northeast", "South"))) %>%
               mutate(start_year = year(start_date),
                      end_year = ifelse(end_date > now(), NA, year(end_date))) %>%
-              select(state, start_year, end_year) %>%
+              select(state, start_year, end_year, region) %>%
               group_by(state) %>%
               mutate(start_year = min(start_year),
                      end_year = max(end_year)) %>%
               mutate(end_year = ifelse(is.na(end_year), 2019, end_year)) %>%
               unique(),
-            aes(xmin = start_year, xmax = end_year, ymin = 0, ymax = Inf),
-            fill = "#FBB907",
+            aes(xmin = start_year, xmax = end_year, ymin = 0, ymax = Inf,
+                fill = region), 
             alpha = 0.5) +
+  facet_geo(~ state) +
   scale_y_log10(breaks = c(0.01, 1, 100),
                 labels = c(0.01, 1, 100)) +
-  scale_x_continuous(breaks = c(1970, 1990, 2010)) +
+  scale_x_continuous(breaks = c(1970, 1990, 2010),
+                     labels = c("'70", "'90", "'10")) +
+  scale_fill_discrete(name = "Region",
+                      guide = guide_legend(nrow = 2,
+                                           title.position = "top",
+                                           title.hjust = 0)) +
   labs(title = "No clear link between residential tax incentives and solar panel uptake",
-       subtitle = "Most states appear to have periods of solar panel growth unrelated to the period at which state-based tax incentives \nfor residential renewable energy systems are available. These periods are marked in yellow below.",
+       subtitle = "Most states appear to have periods of solar panel growth unrelated to the period at which state-based tax incentives \nfor residential renewable energy systems are available. These periods are highlighted below.",
        x = "Year",
        y = "Log Panels per 10,000 people",
        caption = "Data sources: NREL (US Dept of Energy), DSIRE (NC State Univ.)") +
@@ -786,7 +789,9 @@ panels_by_pop %>%
         strip.text = element_text(family = "Asap Medium",
                                   size = 10,
                                   color = "#3F3F3F",
-                                  margin = margin(2, 0, 2, 0)))
+                                  margin = margin(2, 0, 2, 0)),
+        legend.direction = "horizontal",
+        legend.position = c(0.12, 0.97))
 ```
 
 It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be it 
