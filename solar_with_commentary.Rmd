@@ -22,11 +22,14 @@ library(ggrepel) # for neater text labels
 library(gghighlight) # for easier highlighting
 library(geofacet) # for making facets looks like the USA
 library(extrafont) # for... extra fonts
+library(gridExtra) # for combining plots
 
 # Geospatial tools and related libraries
 library(sf)
 library(zipcode) # for geocoding zipcodes
 library(noncensus) # for more geocoding data 
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 # Load previously-imported data
 load(here('data', 'solar_data_master.RData'))
@@ -128,6 +131,8 @@ gen %>%
            fontface = "italic") + 
   theme_custom() +
   theme(panel.grid.major.x = element_blank())
+
+ggsave(here('output', 'gen-by-source.png'), width = 8, height = 6)
 ```
 
 A logical next question is: who's actually capturing all this solar energy? 
@@ -196,6 +201,8 @@ gen %>%
         axis.text.y = element_blank()) +
   coord_flip()
 
+ggsave(here('output', 'gen-by-state-mul.png'), width = 8, height = 8)
+
 # TODO: Add explanatory annotations to extremes, perhaps with goofy comparisons
 ```
 
@@ -207,7 +214,129 @@ That brings me to my next question: does the amount of sunlight each state recei
 
 For this, we'll use solar irradiance data from the Department of Energy's [National Renewable Energy Laboratory](https://www.nrel.gov/gis/data-solar.html). Specifically, we're looking at Global Horizontal Irradiance (GHI), which is the amount of solar radiation a surface receives if placed horizonal to the ground, measured in kilowatt-hours per square meter per day ($kWh/m^2/day$). Since we're dealing with residential installations here, roofs might be sloped in a particular direction, but we'll assume that they more or less average out to horizontal position in the full dataset. 
 
-So how does solar energy generation relate to solar irradiance? 
+```{r}
+# Read state- and county-level shapefiles
+us_states <- ne_states(country = "united states of america",
+                       returnclass = "sf")
+county_map <- st_read(here::here('data', 'shapefiles-usa', 'cb_2017_us_county_500k'))
+
+# Get county and zip code fips code data
+data(counties)
+data(zip_codes)
+
+# zip_codes FIPS data is in numeric formats, drops leading 0s
+zip_codes %<>%
+  mutate(fips = as.character(fips)) %>%
+  mutate(fips = ifelse(nchar(fips) == 4, 
+                       paste0("0", fips),
+                       fips))
+```
+
+
+```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 2.5}
+# Specify map bounds 
+bounds <- data_frame(LONG = c(-122, -64),
+                     LAT = c(24, 49)) %>%
+  st_as_sf(coords = c("LONG", "LAT"),
+           crs = 4326) %>%
+  st_transform(crs = 2163) %>%
+  st_coordinates()
+
+# Plot Solar Panel Map
+map1 <- county_map %>%
+  st_transform(2163) %>%
+  mutate(COUNTYFP = as.character(COUNTYFP)) %>%
+  left_join(panels %>%
+              filter(install_type == "residential") %>%
+              select(zipcode) %>%
+              left_join(zip_codes, by = c("zipcode" = "zip")) %>%
+              group_by(fips) %>%
+              count(),
+            by = c("GEOID" = "fips")) %>%
+  left_join(counties %>%
+              mutate(GEOID = paste0(state_fips, county_fips)) %>%
+              select(GEOID, population),
+            by = c("GEOID" = "GEOID")) %>%
+  mutate(panels_per_10k = ((n * 10000) / population)) %>%
+  ggplot() +
+  geom_sf(aes(fill = panels_per_10k),
+          color = "transparent") + 
+  geom_sf(data = us_states,
+          fill = "transparent",
+          color = "#FFFFFF",
+          size= 0.1) +
+  coord_sf(xlim = bounds[, 1], 
+           ylim = bounds[, 2]) +
+  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
+                      #low = "#1949E3", high = "#EE4A1E",
+                      na.value = "#FFFFFF",
+                      name = "Panels per 10,000 people",
+                      breaks = seq(0, 400, 50),
+                      guide = guide_legend(
+                        direction = "horizontal",
+                        keyheight = unit(2, units = "mm"),
+                        keywidth = unit(10, units = "mm"),
+                        title.position = "top",
+                        title.hjust = 0,
+                        label.hjust = 1,
+                        nrow = 1,
+                        byrow = TRUE,
+                        label.position = "bottom"
+                      )) +
+  labs(title = "Where the solar panels are...",
+       subtitle = "Panels per 10K people by county") +
+  theme_custom() +
+  theme(panel.grid = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_text(size = 8))
+
+# Plot Solar Resource Map 
+map2 <- us_states %>%
+  st_transform(2163) %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select(State, avg),
+            by = c("name" = "State")) %>%
+  ggplot() +
+  geom_sf(aes(fill = avg),
+          color = "transparent") +
+  coord_sf(xlim = bounds[, 1], 
+           ylim = bounds[, 2]) +
+  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
+                      na.value = "#FFFFFF",
+                      name = "Annual Solar Resource (kWh/m^2/day)",
+                      breaks = seq(3, 6, 0.5),
+                      guide = guide_legend(
+                        direction = "horizontal",
+                        keyheight = unit(2, units = "mm"),
+                        keywidth = unit(10, units = "mm"),
+                        title.position = "top",
+                        title.hjust = 0,
+                        label.hjust = 1,
+                        nrow = 1,
+                        byrow = TRUE,
+                        label.position = "bottom"
+                      )) +
+  labs(title = "...versus how much sun they get",
+       subtitle = "Average annual solar irradiance by state",
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
+  theme_custom() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 8),
+        panel.grid = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+
+pair_map <- grid.arrange(map1, map2, ncol = 2)
+ggsave(filename = here::here('output', 'map-pair.png'),
+       plot = pair_map,
+       width = 12, height = 5)
+```
+
+
+As we've seen before, map pairs aren't the best at showing correlation. So let's try another way of looking at how solar energy generation correlates with solar irradiance.
 
 ```{r ghi-vs-gen, warning = FALSE, message = FALSE, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
@@ -293,6 +422,7 @@ gen %>%
         legend.position = c(0.87, 0.15),
         legend.background = element_rect(color = "#BFBFBF"))
 
+ggsave(here('output', 'ghi-vs-gen.png'), width = 8, height = 6)
 ```
 
 A rough upward trend seems to hold for the Western states, although there seems to be a lot of unexplained variation towards the lower end of the irradiance range. Among the Northeast states in red above, New York, New Jersey, and Massachussetts in particular are generating way more solar energy than neighboring states that get just as much sunlight, if not more.
@@ -348,11 +478,12 @@ panels_by_pop %>%
                                    margin = margin(0, 0, 10, 0)),
         panel.grid.major.x = element_blank())
 
+ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
 ```
 
 Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. It's also worth exploring how this ranking has changed over time:
 
-```{r, fig.align = 'center', fig.width = 4, fig.height = 5}
+```{r state-panel-rank, fig.align = 'center', fig.width = 4, fig.height = 5}
 panels_by_pop %>%
   select(state, year, panels_per_10k) %>%
   mutate(region = state.region[match(state, state.abb)]) %>%
@@ -390,6 +521,8 @@ panels_by_pop %>%
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
         axis.text.x = element_text(margin = margin(0, 0, 10, 0)))
+
+ggsave(here('output', 'state-panel-rank.png'), width = 8, height = 10)
 ```
 
 
@@ -498,6 +631,8 @@ policy %>%
         legend.background = element_rect(fill = "#FFFFFF",
                                          linetype = "blank"),
         axis.text.y.left = element_text(margin = margin(0, 0, 0, 20)))
+
+ggsave(here('output', 'policy-by-state-year.png'), width = 8, height = 10)
 ```
 
 It appears that the availability of renewable ITCs only tell part of the story. Among the states that we were previously interested in, Massachussetts (along with Iowa and New Hampshire) was among the earliest states in the country to implement tax incentive programs in the form of property tax exemptions between 1975 and 1980. New York only implemented a similar property tax exemption in 1988. Meanwhile, the earliest incentive program available to the residential sector in New Jersey was the adoption of Solar Renewable Energy Certificates (SREC) in 2004, where the state could purchase surplus solar energy from households via SRECs in order to meet the renewable energy production quota set in its Renewable Portfolio Standard. 
@@ -551,6 +686,8 @@ panels_by_pop %>%
   theme(strip.text = element_text(margin = margin(2, 0, 2, 0)),
         legend.direction = "horizontal",
         legend.position = c(0.12, 0.97))
+
+ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
 ```
 
 It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be it 
