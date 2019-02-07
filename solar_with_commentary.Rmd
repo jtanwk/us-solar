@@ -776,12 +776,12 @@ panels_by_pop %>%
   scale_x_continuous(breaks = c(1970, 1990, 2010),
                      labels = c("'70", "'90", "'10")) +
   scale_fill_manual(name = "Region",
-                    values = c('#FF810F','#377eb8','#4daf4a','#5D2BF0'),
+                    values = c('#FF810F','#377eb8', '#5D2BF0', '#4daf4a'),
                     guide = guide_legend(nrow = 2,
                                          title.position = "top",
                                          title.hjust = 0)) +
   labs(title = "No clear link between residential tax incentives and solar panel uptake",
-       subtitle = "Most states appear to have periods of solar panel growth unrelated to the period at which state-based tax incentives \nfor residential renewable energy systems are available. These periods are highlighted below.",
+       subtitle = "Most states appear to have periods of solar panel growth unrelated to the period at which state-based tax incentives \nfor residential renewable energy systems are available in that state. These periods are highlighted below.",
        x = "Year",
        y = "Log Panels per 10,000 people",
        caption = "Data sources: NREL (US Dept of Energy), DSIRE (NC State Univ.)") +
