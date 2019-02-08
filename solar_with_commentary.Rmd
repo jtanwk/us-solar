@@ -7,7 +7,7 @@ output:
     code_folding: hide
 ---
 
-```{r setup, include = FALSE}
+```{r setup}
 knitr::opts_chunk$set(echo = TRUE)
 
 # Data analysis libraries
@@ -34,6 +34,7 @@ library(rnaturalearthdata)
 # Load previously-imported data
 load(here('data', 'solar_data_master.RData'))
 ```
+
 
 ```{r theme}
 # Set custom theme
@@ -132,7 +133,7 @@ gen %>%
   theme_custom() +
   theme(panel.grid.major.x = element_blank())
 
-ggsave(here('output', 'gen-by-source.png'), width = 8, height = 6)
+# ggsave(here('output', 'gen-by-source.png'), width = 8, height = 6)
 ```
 
 A logical next question is: who's actually capturing all this solar energy? 
@@ -201,7 +202,7 @@ gen %>%
         axis.text.y = element_blank()) +
   coord_flip()
 
-ggsave(here('output', 'gen-by-state-mul.png'), width = 8, height = 8)
+# ggsave(here('output', 'gen-by-state-mul.png'), width = 8, height = 8)
 
 # TODO: Add explanatory annotations to extremes, perhaps with goofy comparisons
 ```
@@ -214,7 +215,7 @@ That brings me to my next question: does the amount of sunlight each state recei
 
 For this, we'll use solar irradiance data from the Department of Energy's [National Renewable Energy Laboratory](https://www.nrel.gov/gis/data-solar.html). Specifically, we're looking at Global Horizontal Irradiance (GHI), which is the amount of solar radiation a surface receives if placed horizonal to the ground, measured in kilowatt-hours per square meter per day ($kWh/m^2/day$). Since we're dealing with residential installations here, roofs might be sloped in a particular direction, but we'll assume that they more or less average out to horizontal position in the full dataset. 
 
-```{r}
+```{r, include = FALSE, message = FALSE, results = 'hide'}
 # Read state- and county-level shapefiles
 us_states <- ne_states(country = "united states of america",
                        returnclass = "sf")
@@ -284,7 +285,8 @@ map1 <- county_map %>%
                         label.position = "bottom"
                       )) +
   labs(title = "Where the solar panels are...",
-       subtitle = "Panels per 10K people by county") +
+       subtitle = "Panels per 10K people by county",
+       caption = "Data source: OpenPV Project (U.S. Dept of Energy)") +
   theme_custom() +
   theme(panel.grid = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
@@ -329,10 +331,11 @@ map2 <- us_states %>%
         axis.text = element_blank(),
         axis.title = element_blank())
 
-pair_map <- grid.arrange(map1, map2, ncol = 2)
-ggsave(filename = here::here('output', 'map-pair.png'),
-       plot = pair_map,
-       width = 12, height = 5)
+grid.arrange(map1, map2, ncol = 2)
+# pair_map <- grid.arrange(map1, map2, ncol = 2)
+# ggsave(filename = here::here('output', 'map-pair.png'),
+#       plot = pair_map,
+#       width = 12, height = 5)
 ```
 
 
@@ -422,7 +425,7 @@ gen %>%
         legend.position = c(0.87, 0.15),
         legend.background = element_rect(color = "#BFBFBF"))
 
-ggsave(here('output', 'ghi-vs-gen.png'), width = 8, height = 6)
+# ggsave(here('output', 'ghi-vs-gen.png'), width = 8, height = 6)
 ```
 
 A rough upward trend seems to hold for the Western states, although there seems to be a lot of unexplained variation towards the lower end of the irradiance range. Among the Northeast states in red above, New York, New Jersey, and Massachussetts in particular are generating way more solar energy than neighboring states that get just as much sunlight, if not more.
@@ -478,7 +481,7 @@ panels_by_pop %>%
                                    margin = margin(0, 0, 10, 0)),
         panel.grid.major.x = element_blank())
 
-ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
+# ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
 ```
 
 Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. It's also worth exploring how this ranking has changed over time:
@@ -632,7 +635,7 @@ policy %>%
                                          linetype = "blank"),
         axis.text.y.left = element_text(margin = margin(0, 0, 0, 20)))
 
-ggsave(here('output', 'policy-by-state-year.png'), width = 8, height = 10)
+# ggsave(here('output', 'policy-by-state-year.png'), width = 8, height = 10)
 ```
 
 It appears that the availability of renewable ITCs only tell part of the story. Among the states that we were previously interested in, Massachussetts (along with Iowa and New Hampshire) was among the earliest states in the country to implement tax incentive programs in the form of property tax exemptions between 1975 and 1980. New York only implemented a similar property tax exemption in 1988. Meanwhile, the earliest incentive program available to the residential sector in New Jersey was the adoption of Solar Renewable Energy Certificates (SREC) in 2004, where the state could purchase surplus solar energy from households via SRECs in order to meet the renewable energy production quota set in its Renewable Portfolio Standard. 
@@ -687,7 +690,7 @@ panels_by_pop %>%
         legend.direction = "horizontal",
         legend.position = c(0.12, 0.97))
 
-ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
+# ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
 ```
 
 It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be it 
