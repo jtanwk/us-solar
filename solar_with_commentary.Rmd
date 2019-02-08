@@ -697,6 +697,34 @@ It appears that the periods where state-based financial incentives were availabl
 
 Installing a solar panel system may or may not be environmentally-motivated, but we can safely say it is  primarily a financial decision. Buyers put up with a high fixed cost upfront in order to enjoy long-term savings in the future, so the cheaper the cost of installation, the more likely installing solar panels will make financial sense. That suggests we should look at other factors impacting the cost of installing solar panels.  
 
+```{r}
+panels %>%
+  filter(install_type == "residential") %>%
+  filter(year_installed >= 1990) %>% 
+  ggplot(aes(x = year_installed, y = cost_per_watt)) +
+  # geom_point(alpha = 0.1,
+  #            na.rm = TRUE) +
+  geom_boxplot(aes(group = year_installed),
+               na.rm = TRUE) +
+  # geom_smooth(method = "lm",
+  #             linetype = "dashed",
+  #             na.rm = TRUE) +
+  theme_custom()
+
+panels %>%
+  filter(install_type == "residential") %>%
+  filter(year_installed >= 1990) %>% 
+  mutate(year_installed = as.factor(year_installed)) %>%
+  ggplot(aes(x = cost_per_watt, y = year_installed)) +
+  geom_density_ridges(na.rm = TRUE,
+                      scale = 5) +
+  theme_custom()
+
+```
+
+
+
+
 # Next steps
 
 As an ongoing project, we will next look at the following factors as possible correlates of solar panel installation rates:
