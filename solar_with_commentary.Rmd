@@ -21,6 +21,7 @@ library(readxl) # for reading Excel files
 library(ggrepel) # for neater text labels
 library(gghighlight) # for easier highlighting
 library(geofacet) # for making facets looks like the USA
+library(ggridges)
 library(extrafont) # for... extra fonts
 library(gridExtra) # for combining plots
 
@@ -338,8 +339,7 @@ grid.arrange(map1, map2, ncol = 2)
 #       width = 12, height = 5)
 ```
 
-
-As we've seen before, map pairs aren't the best at showing correlation. So let's try another way of looking at how solar energy generation correlates with solar irradiance.
+As we've seen before, however, map pairs aren't the best at showing correlation. So let's try another way of looking at how solar energy generation correlates with solar irradiance.
 
 ```{r ghi-vs-gen, warning = FALSE, message = FALSE, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
@@ -484,52 +484,7 @@ panels_by_pop %>%
 # ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
 ```
 
-Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. It's also worth exploring how this ranking has changed over time:
-
-```{r state-panel-rank, fig.align = 'center', fig.width = 4, fig.height = 5}
-panels_by_pop %>%
-  select(state, year, panels_per_10k) %>%
-  mutate(region = state.region[match(state, state.abb)]) %>%
-  filter(!is.na(region)) %>%
-  group_by(year) %>%
-  arrange(year, desc(panels_per_10k)) %>%
-  mutate(ranking = row_number()) %>%
-  mutate(highlight = ifelse(state %in% c("VT", "ID"), state, "Other")) %>% 
-  ##### PLOT BEGINS
-  ggplot(aes(x = year, y = ranking, group = state, color = highlight)) +
-  geom_line(na.rm = TRUE,
-            show.legend = FALSE) +
-  geom_point(na.rm = TRUE,
-             show.legend = FALSE) +
-  geom_text(data = . %>% filter(year == 1995),
-            aes(x = year, y = ranking, label = state, color = highlight),
-            nudge_x = -1,
-            size = 3.5,
-            show.legend = FALSE) +
-  geom_text(data = . %>% filter(year == 2016),
-            aes(x = year, y = ranking, label = state, color = highlight),
-            nudge_x = 1,
-            size = 3.5,
-            show.legend = FALSE) +
-  scale_y_reverse() +
-  scale_x_continuous(limits = c(1993, 2018),
-                     breaks = seq(1995, 2015, 5)) +
-  scale_color_manual(values = c("#5D2BF0", "#DDDDDD", "#FF810F")) +
-  labs(title = "VT has seen biggest overall increase in ranking of solar panels per capita",
-       subtitle = "Ranking states by solar panels per capita, Vermont rose from #46 in 1995 to #11 in 2016. \nMeanwhile, Idaho saw the largest drop, moving from #3 in 1995 to #42 in 2016.",
-       x = "Year",
-       caption = "Data sources: NREL (US Dept of Energy), National Cancer Institute") +
-  theme_custom() +
-  theme(panel.grid = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(margin = margin(0, 0, 10, 0)))
-
-ggsave(here('output', 'state-panel-rank.png'), width = 8, height = 10)
-```
-
-
-The question now becomes - **why**? As we saw before, the Northeast region as a group receives the lowest annual solar irradiance among all the states. I definitely wouldn't go to Boston for a beach weekend.  
+Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. The question now becomes - **why**? As we saw before, the Northeast region as a group receives the lowest annual solar irradiance among all the states. I definitely wouldn't go to Boston for a beach weekend.  
 
 A simple hypothesis is that some of these states pursue more "green" policies compared to other states. In order to compare them, however, how do we quantify a state's commitment to environmental policy? 
 
@@ -693,45 +648,95 @@ panels_by_pop %>%
 # ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
 ```
 
-It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be it 
+It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be they property tax exemptions, tax credits, low-interest financing plans, etc. 
 
-Installing a solar panel system may or may not be environmentally-motivated, but we can safely say it is  primarily a financial decision. Buyers put up with a high fixed cost upfront in order to enjoy long-term savings in the future, so the cheaper the cost of installation, the more likely installing solar panels will make financial sense. That suggests we should look at other factors impacting the cost of installing solar panels.  
+Installing a solar panel system may or may not be environmentally-motivated, but we can safely say it is  primarily a financial decision. Buyers put up with a high fixed cost upfront in order to enjoy long-term savings in the future, so the cheaper the cost of installation, the more likely installing solar panels will make financial sense. That suggests we should look at other factors impacting the cost of installing solar panels. We can start with the most obvious one - the cost of the panels themselves.
 
-```{r}
+# How have solar panel costs changed? 
+
+As with any technology, we can generally expect efficiency and capacity to rise over time. Since solar panels have at least grown in their literal efficiency (i.e. amount of energy generated from the same amount of sunlight), it makes more sense to look at how much it costs to generate a single watt of electricity and how that's changed over time.
+
+```{r, message=FALSE, warning=FALSE, fig.width = 4, fig.height = 3}
 panels %>%
   filter(install_type == "residential") %>%
-  filter(year_installed >= 1990) %>% 
-  ggplot(aes(x = year_installed, y = cost_per_watt)) +
-  # geom_point(alpha = 0.1,
-  #            na.rm = TRUE) +
-  geom_boxplot(aes(group = year_installed),
-               na.rm = TRUE) +
-  # geom_smooth(method = "lm",
-  #             linetype = "dashed",
-  #             na.rm = TRUE) +
-  theme_custom()
-
-panels %>%
-  filter(install_type == "residential") %>%
-  filter(year_installed >= 1990) %>% 
-  mutate(year_installed = as.factor(year_installed)) %>%
-  ggplot(aes(x = cost_per_watt, y = year_installed)) +
-  geom_density_ridges(na.rm = TRUE,
+  filter(year_installed >= 1997) %>% 
+  mutate(year_installed = factor(year_installed)) %>%
+  ggplot(aes(x = cost_per_watt, y = fct_rev(year_installed))) +
+  geom_density_ridges_gradient(aes(fill = ..x..),
+                      color = "#FFFFFF",
+                      na.rm = TRUE,
+                      show.legend = FALSE,
                       scale = 5) +
-  theme_custom()
+  scale_x_continuous(breaks = seq(0, 30, 5),
+                     labels = c("$0", "$5", "$10", "$15", "$20", "$25", "$30")) +
+  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F", #FFE900, #FF810F
+                      name = "Cost per watt",
+                      breaks = seq(0, 30, 10),
+                      labels = c("$0", "$10", "$20", "$30")) + 
+  labs(title = "Solar panels have become steadily cheaper",
+       subtitle = "When accounting for a solar panel's generative capacity (using cost-per-watt), \nsolar panel costs have decreased and become more consistent over the last 20 years.",
+       x = "Cost per watt",
+       caption = "Data sources: NREL (U.S. Dept of Energy)") +
+  annotate("text",
+           x = 21, y = 18,
+           label = "Prices in the late 1990s and \nearly 2000s varied wildly.",
+           size = 3,
+           lineheight = 1,
+           hjust = 0, vjust = 1,
+           family = "Asap",
+           fontface = "italic",
+           color = "#000000") +
+  annotate("text",
+           x = 12, y = 5,
+           label = "By the late 2010s, prices decreased to \nunder $5 per watt and their spread \ndiminished, suggesting more \nstandardized pricing.",
+           size = 3,
+           lineheight = 1,
+           hjust = 0, vjust = 1,
+           family = "Asap",
+           fontface = "italic",
+           color = "#000000") +
+  theme_custom() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(margin = margin(0, 0, 0, 5)),
+        axis.title.y = element_blank()) 
 
+# ggsave(here('output', 'panel-cpw-by-year.png'), width = 8, height = 6)
 ```
 
 
 
+```{r, message=F, warning=F, fig.width=4, fig.height=3}
+panels %>%
+  filter(install_type == "residential") %>%
+  filter(year_installed >= 1990) %>%
+  group_by(state, year_installed) %>%
+  summarize(med_cpw = median(cost_per_watt, na.rm = TRUE)) %>%
+  ggplot(aes(x = year_installed, y = med_cpw)) +
+  geom_step(aes(color = state),
+            na.rm = T,
+            show.legend = FALSE) +
+  gghighlight(state %in% c("NY", "MA", "NJ"),
+              unhighlighted_colour = "#DDDDDD",
+              use_group_by = F,
+              use_direct_label = F) +
+  facet_wrap(~ state) +
+  scale_color_manual(values = c("#FF810F", "#4daf4a", "#5D2BF0")) +
+  labs(title = "MA, NY, NJ still among more expensive states for solar panels",
+       subtitle = "Looking at how the median cost-per-watt has changed for each state over the last 20 years, \nsolar energy generation in  MA, NY, and NJ - the three Northeast states that produced \ndisproportionately higher solar energy relative to their solar irradiance - is also relatively high.",
+       x = "Year",
+       y = "Median cost per watt ($/W)",
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
+  theme_custom() +
+  theme(panel.grid.major.x = element_blank())
+
+# ggsave(here('output', 'panel-cpw-nestates.png'), width = 8, height = 6)
+```
 
 # Next steps
 
 As an ongoing project, we will next look at the following factors as possible correlates of solar panel installation rates:
 
 - Cost of electricity in each state 
-
-- Cost of the solar panels themselves
 
 - A deeper look into the types of state tax incentives enacted, i.e. whether it was a tax deduction, a tax credit, a tax exemption, a low-interest loan program, size of the state's renewable portfolio standard, and so on.
 

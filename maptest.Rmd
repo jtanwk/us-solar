@@ -133,32 +133,148 @@ ggsave(filename = here::here('output', 'map-pair.png'),
 ```
 
 
+```{r, warning=FALSE, message=FALSE}
+# Specify map bounds 
+bounds <- data_frame(LONG = c(-122, -60),
+                     LAT = c(22, 46)) %>%
+  st_as_sf(coords = c("LONG", "LAT"),
+           crs = 4326) %>%
+  st_transform(crs = 2163) %>%
+  st_coordinates()
+
+# Plot map
+us_states %>%
+  st_transform(2163) %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select(State, avg),
+            by = c("name" = "State")) %>%
+  ggplot() +
+  geom_sf(aes(fill = avg),
+          color = "transparent") +
+  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
+                      na.value = "#FFFFFF",
+                      name = "Annual Solar \nResource \n(kWh/m^2/day)",
+                      guide = guide_legend(
+                        direction = "vertical",
+                        keyheight = unit(10, units = "mm"),
+                        keywidth = unit(2, units = "mm"),
+                        title.position = "top",
+                        title.hjust = 0,
+                        label.vjust = 1
+                      )) +
+  geom_sf(data = county_map %>%
+            st_transform(2163) %>%
+            select(GEOID, geometry) %>%
+            left_join(zip_codes %>%
+                        select(fips, zip),
+                      by = c("GEOID" = "fips")) %>%
+            left_join(panels %>%
+                        group_by(zipcode) %>%
+                        count(),
+                      by = c("zip" = "zipcode")) %>%
+            group_by(GEOID) %>%
+            mutate(n = sum(n, na.rm = TRUE)) %>%
+            select(GEOID, n, geometry) %>%
+            unique() %>%
+            mutate(cent = st_centroid(geometry)) %>%
+            arrange(desc(n)) ,
+          aes(geometry = cent,
+              size = n),
+          alpha = 0.5,
+          color = "#FFFFFF",
+          fill = "#FFFFFF",
+          show.legend = "point",
+          na.rm = TRUE) +
+  coord_sf(xlim = bounds[, 1], 
+         ylim = bounds[, 2],
+         expand = FALSE) +
+  labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
+       subtitle = "Average annual solar irradiance by state",
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
+  theme_custom() +
+  theme(legend.title = element_text(size = 8),
+        panel.grid = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+```
 
 
 
+```{r, warning=FALSE, message=FALSE}
+# Specify map bounds 
+bounds <- data_frame(LONG = c(-122, -60),
+                     LAT = c(22, 46)) %>%
+  st_as_sf(coords = c("LONG", "LAT"),
+           crs = 4326) %>%
+  st_transform(crs = 2163) %>%
+  st_coordinates()
 
+# Plot map
 
-
-
-
-
-
-```{r}
-panels %>%
-  filter(install_type == "residential") %>%
-  select(zipcode) %>%
-  left_join(zip_codes, by = c("zipcode" = "zip")) %>%
-  group_by(fips) %>%
-  count() %>%
+county_map %>%
+  st_transform(2163) %>%
+  select(STATEFP, COUNTYFP, GEOID, geometry) %>%
   left_join(counties %>%
-            mutate(GEOID = paste0(state_fips, county_fips)) %>%
-            select(GEOID, population),
-          by = c("fips" = "GEOID")) %>%
-  mutate(panels_per_10k = ((n * 10000) / population)) %>%
-  ggplot(aes(x = panels_per_10k)) +
-  geom_histogram(bins = 50) +
-  scale_x_log10() +
-  theme_minimal()
+              select(county_fips, population),
+            by = c("COUNTYFP" = "county_fips")) %>%
+  left_join(zip_codes %>%
+              select(fips, zip),
+            by = c("GEOID" = "fips")) %>%
+  left_join(panels %>%
+              group_by(zipcode) %>%
+              count(),
+            by = c("zip" = "zipcode")) %>%
+  left_join(us_states %>%
+              select(fips, postal, name) %>%
+              mutate(fips = substr(fips, 3, 4)) %>%
+              st_set_geometry(NULL),
+            by = c("STATEFP" = "fips")) %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select(State, avg),
+            by = c("name" = "State")) %>% 
+  group_by(GEOID) %>%
+  mutate(n = sum(n, na.rm = TRUE)) %>%
+  mutate(panels_per_10k = n / population) %>% 
+  select(GEOID, panels_per_10k, avg, geometry) %>%
+  unique() %>%
+  mutate(cent = st_centroid(geometry)) %>%
+  # mutate(cent = ifelse(n == 0, NA, n)) %>%
+  arrange(desc(n)) %>%
+  ##### PLOT BEGINS
+  ggplot() +
+  geom_sf(aes(geometry = geometry),
+          fill = "#FFFFFF",
+          color = "#DDDDDD") +
+  geom_sf(aes(geometry = cent,
+              color = avg,
+              size = n),
+          fill = "#FFFFFF",
+          alpha = 0.5) +
+  coord_sf(xlim = bounds[, 1],
+           ylim = bounds[, 2],
+           expand = FALSE) +
+  scale_color_gradient(low = "#5D2BF0", high = "#FF810F",
+                        na.value = "#FFFFFF",
+                        name = "Annual Solar \nResource \n(kWh/m^2/day)",
+                        guide = guide_legend(
+                          direction = "vertical",
+                          keyheight = unit(10, units = "mm"),
+                          keywidth = unit(2, units = "mm"),
+                          title.position = "top",
+                          title.hjust = 0,
+                          label.vjust = 1)) +
+  scale_size(name = "Number of Panels") +
+  labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
+       subtitle = "Average annual solar irradiance by state",
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
+  theme_custom() +
+  theme(legend.title = element_text(size = 8),
+        panel.grid.major = element_line(color = "transparent"),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+
 ```
 
 
