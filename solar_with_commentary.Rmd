@@ -703,7 +703,7 @@ panels %>%
 # ggsave(here('output', 'panel-cpw-by-year.png'), width = 8, height = 6)
 ```
 
-
+While panels have gotten cheaper overall, what does this change look like for specific states? In particular, how has cost-per-watt changed for the three Northeast states we identified above - Massachussetts, New York, and New Jersey - that generated disproportionately high levels of solar energy relative to the solar irradiance they received? 
 
 ```{r, message=F, warning=F, fig.width=4, fig.height=3}
 panels %>%
@@ -731,6 +731,8 @@ panels %>%
 
 # ggsave(here('output', 'panel-cpw-nestates.png'), width = 8, height = 6)
 ```
+
+Interestingly enough, when looking at the path of each state's median cost-per-watt over the course of the past 20 years, MA, NY and NJ all have had median costs on the high end of each year's distribution. This places a wrench in my original hypothesis. It seems like we might need different data - say, cost-per-watt relative to each state's median income. 
 
 # Next steps
 
