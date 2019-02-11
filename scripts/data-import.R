@@ -11,6 +11,31 @@ library(lubridate) # dealing with date objects
 library(here) # for OS-agnostic filepaths
 library(readxl) # for reading Excel files
 
+# Geospatial tools and related libraries
+library(sf)
+library(zipcode) # for geocoding zipcodes
+library(noncensus) # for more geocoding data 
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+
+##### GEOSPATIAL DATA ########################################################
+
+# Read state- and county-level shapefiles
+us_states <- ne_states(country = "united states of america",
+                       returnclass = "sf")
+county_map <- st_read(here::here('data', 'shapefiles-usa', 'cb_2017_us_county_500k'))
+
+# Get county and zip code fips code data
+data(counties)
+data(zip_codes)
+
+# zip_codes FIPS data is in numeric formats, drops leading 0s
+zip_codes %<>%
+  mutate(fips = as.character(fips)) %>%
+  mutate(fips = ifelse(nchar(fips) == 4, 
+                       paste0("0", fips),
+                       fips))
 
 ##### SOLAR ENERGY GENERATION DATA ############################################
 
@@ -260,6 +285,7 @@ policy %<>%
 
 ##### SAVE .RDATA FILE SO I DON'T HAVE TO RELOAD EVERYTHING EVERY TIME #######
 
-save(gen, ghi, panels, panels_by_pop, policy, pop,
+save(counties, county_map, gen, ghi, panels, panels_by_pop, policy, pop,
+     us_states, zip_codes,
      file = here('data', 'solar_data_master.RData'))
 

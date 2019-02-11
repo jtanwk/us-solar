@@ -147,7 +147,7 @@ gen %>%
   summarize(total_btu = sum(Data)) %>%
   mutate(dev_fr_median = total_btu / median(total_btu, na.rm = TRUE)) %>% 
   filter(dev_fr_median != 0) %>% # SD and ND mess with log scale 
-  mutate(highlight = ifelse(dev_fr_median > 1, TRUE, FALSE)) %>%
+  mutate(highlight = ifelse(dev_fr_median > 1, TRUE, FALSE)) %>% 
   ##### PLOT BEGINS
   ggplot(aes(x = reorder(StateCode, dev_fr_median), y = dev_fr_median, color = highlight)) +
   geom_point(stat = 'identity', 
@@ -215,24 +215,6 @@ That brings me to my next question: does the amount of sunlight each state recei
 # Do sunny states generate more solar energy?
 
 For this, we'll use solar irradiance data from the Department of Energy's [National Renewable Energy Laboratory](https://www.nrel.gov/gis/data-solar.html). Specifically, we're looking at Global Horizontal Irradiance (GHI), which is the amount of solar radiation a surface receives if placed horizonal to the ground, measured in kilowatt-hours per square meter per day ($kWh/m^2/day$). Since we're dealing with residential installations here, roofs might be sloped in a particular direction, but we'll assume that they more or less average out to horizontal position in the full dataset. 
-
-```{r, include = FALSE, message = FALSE, results = 'hide'}
-# Read state- and county-level shapefiles
-us_states <- ne_states(country = "united states of america",
-                       returnclass = "sf")
-county_map <- st_read(here::here('data', 'shapefiles-usa', 'cb_2017_us_county_500k'))
-
-# Get county and zip code fips code data
-data(counties)
-data(zip_codes)
-
-# zip_codes FIPS data is in numeric formats, drops leading 0s
-zip_codes %<>%
-  mutate(fips = as.character(fips)) %>%
-  mutate(fips = ifelse(nchar(fips) == 4, 
-                       paste0("0", fips),
-                       fips))
-```
 
 
 ```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 2.5}
