@@ -5,9 +5,15 @@ date: "2/3/2019"
 output: 
   html_notebook:
     code_folding: hide
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
 ---
 
-```{r setup}
+# Setup
+
+```{r setup, message=F, warning=F, results='hide'}
 knitr::opts_chunk$set(echo = TRUE)
 
 # Data analysis libraries
@@ -33,6 +39,7 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 
 # Load previously-imported data
+# Data assemby process captured in /scripts/data-import.R
 load(here('data', 'solar_data_master.RData'))
 ```
 
@@ -134,7 +141,7 @@ gen %>%
   theme_custom() +
   theme(panel.grid.major.x = element_blank())
 
-# ggsave(here('output', 'gen-by-source.png'), width = 8, height = 6)
+ggsave(here('output', 'gen-by-source.png'), width = 8, height = 6)
 ```
 
 A logical next question is: who's actually capturing all this solar energy? 
@@ -146,7 +153,7 @@ gen %>%
   group_by(StateCode) %>%
   summarize(total_btu = sum(Data)) %>%
   mutate(dev_fr_median = total_btu / median(total_btu, na.rm = TRUE)) %>% 
-  filter(dev_fr_median != 0) %>% # SD and ND mess with log scale 
+  filter(dev_fr_median != 0) %>% # SD and ND mess with log scale; omit
   mutate(highlight = ifelse(dev_fr_median > 1, TRUE, FALSE)) %>% 
   ##### PLOT BEGINS
   ggplot(aes(x = reorder(StateCode, dev_fr_median), y = dev_fr_median, color = highlight)) +
@@ -204,8 +211,6 @@ gen %>%
   coord_flip()
 
 # ggsave(here('output', 'gen-by-state-mul.png'), width = 8, height = 8)
-
-# TODO: Add explanatory annotations to extremes, perhaps with goofy comparisons
 ```
 
 Unsurprisingly, California was the single largest **residential** generator of solar energy in 2016 - in fact, California and Arizona combined generated more than half of the national total. What is a bit more of a surprise is how high on the list the Northeast states like New York (#3), New Jersey (#4), and Massachussetts (#6) lie, particularly in comparison to known sunny states like Nevada (#9), Texas (#10) and Florida (#13).
@@ -242,6 +247,7 @@ map1 <- county_map %>%
               select(GEOID, population),
             by = c("GEOID" = "GEOID")) %>%
   mutate(panels_per_10k = ((n * 10000) / population)) %>%
+  ##### PLOT BEGINS
   ggplot() +
   geom_sf(aes(fill = panels_per_10k),
           color = "transparent") + 
@@ -252,7 +258,6 @@ map1 <- county_map %>%
   coord_sf(xlim = bounds[, 1], 
            ylim = bounds[, 2]) +
   scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
-                      #low = "#1949E3", high = "#EE4A1E",
                       na.value = "#FFFFFF",
                       name = "Panels per 10,000 people",
                       breaks = seq(0, 400, 50),
@@ -269,9 +274,9 @@ map1 <- county_map %>%
                       )) +
   labs(title = "Where the solar panels are...",
        subtitle = "Panels per 10K people by county",
-       caption = "Data source: OpenPV Project (U.S. Dept of Energy)") +
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
   theme_custom() +
-  theme(panel.grid = element_line(color = "#FFFFFF"),
+  theme(panel.grid.major = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
         axis.title = element_blank(),
         legend.position = "bottom",
@@ -284,6 +289,7 @@ map2 <- us_states %>%
               filter(period == "Ann") %>%
               select(State, avg),
             by = c("name" = "State")) %>%
+  ##### PLOT BEGINS
   ggplot() +
   geom_sf(aes(fill = avg),
           color = "transparent") +
@@ -310,15 +316,15 @@ map2 <- us_states %>%
   theme_custom() +
   theme(legend.position = "bottom",
         legend.title = element_text(size = 8),
-        panel.grid = element_line(color = "#FFFFFF"),
+        panel.grid.major = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
         axis.title = element_blank())
 
-grid.arrange(map1, map2, ncol = 2)
-# pair_map <- grid.arrange(map1, map2, ncol = 2)
-# ggsave(filename = here::here('output', 'map-pair.png'),
-#       plot = pair_map,
-#       width = 12, height = 5)
+# grid.arrange(map1, map2, ncol = 2)
+pair_map <- grid.arrange(map1, map2, ncol = 2)
+ggsave(filename = here::here('output', 'map-pair.png'),
+      plot = pair_map,
+      width = 12, height = 5)
 ```
 
 As we've seen before, however, map pairs aren't the best at showing correlation. So let's try another way of looking at how solar energy generation correlates with solar irradiance.
@@ -407,7 +413,7 @@ gen %>%
         legend.position = c(0.87, 0.15),
         legend.background = element_rect(color = "#BFBFBF"))
 
-# ggsave(here('output', 'ghi-vs-gen.png'), width = 8, height = 6)
+ggsave(here('output', 'ghi-vs-gen.png'), width = 8, height = 6)
 ```
 
 A rough upward trend seems to hold for the Western states, although there seems to be a lot of unexplained variation towards the lower end of the irradiance range. Among the Northeast states in red above, New York, New Jersey, and Massachussetts in particular are generating way more solar energy than neighboring states that get just as much sunlight, if not more.
@@ -432,6 +438,7 @@ panels_by_pop %>%
   mutate(highlight = ifelse(region == "Northeast", TRUE, FALSE)) %>%
   filter(!is.na(region)) %>%
   filter(year == 2016) %>%
+  ##### PLOT BEGINS
   ggplot(aes(x = reorder(state, -panels_per_10k), 
              y = panels_per_10k,
              fill = highlight)) +
@@ -440,17 +447,6 @@ panels_by_pop %>%
   facet_grid(. ~ region,
              scales = "free_x",
              space = "free_x") +
-  # geom_text(data = data_frame(state = "NJ",
-  #                                panels_per_10k = 95,
-  #                                region = factor("Northeast",
-  #                                   levels = c("West", "Northeast", "South", "North Central")),
-  #                                highlight = TRUE),
-  #           aes(label = "MA had the 3rd-most \nhousehold solar panels \nper capita"),
-  #           hjust = 0,
-  #           vjust = 1,
-  #           size = 3,
-  #           color = "grey40",
-  #           nudge_x = -0.3) +
   scale_fill_manual(values = c("#DDDDDD", "#5D2BF0")) +
   labs(title = 'Northeast states are surprisingly well-represented in solar panel counts',
        subtitle = 'Adjusting for state population size, NY, MA, and NJ have the 3rd, 5th and 10th-most residential \nsolar panel installations per capita respectively.',
@@ -463,7 +459,7 @@ panels_by_pop %>%
                                    margin = margin(0, 0, 10, 0)),
         panel.grid.major.x = element_blank())
 
-# ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
+ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
 ```
 
 Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. The question now becomes - **why**? As we saw before, the Northeast region as a group receives the lowest annual solar irradiance among all the states. I definitely wouldn't go to Boston for a beach weekend.  
@@ -472,7 +468,7 @@ A simple hypothesis is that some of these states pursue more "green" policies co
 
 One way we'll explore below is to look at how they spend their money. Specifically, many states create financial incentives for residents to invest in solar panels by offering loan programs, surplus solar energy buybacks (more on this later), and otherwise allowing for tax exemptions or credits. Which states do this, and to what extent?
 
-# Decreasing the cost of Solar Panels with Tax Incentives
+# Have state tax incentives boosted solar panel adoption?
 
 Here, I'm interested in the effect of state and federal policies that provide tax incentives for installing renewable energy systems. We know that the federal solar tax credit incentive was implemented in 2005 and is still in effect. For individual states, we'll have to look at data from the [Database of State Incentives for Renewables & Efficiency (DSIRE)](http://www.dsireusa.org/resources/data-and-tools/) maintained by N.C. State University. 
 
@@ -509,9 +505,6 @@ policy %>%
   geom_tile(aes(fill = policy),
             color = "white",
             size = 0.5) +
-  # facet_grid(region ~ .,
-  #            scales = "free_y",
-  #            space = "free_y") +
   scale_fill_manual(breaks = c(TRUE),
                     values = c("#DDDDDD", "#FF810F"),
                     name = "Residential ITCs in Effect?") +
@@ -572,7 +565,7 @@ policy %>%
                                          linetype = "blank"),
         axis.text.y.left = element_text(margin = margin(0, 0, 0, 20)))
 
-# ggsave(here('output', 'policy-by-state-year.png'), width = 8, height = 10)
+ggsave(here('output', 'policy-by-state-year.png'), width = 8, height = 10)
 ```
 
 It appears that the availability of renewable ITCs only tell part of the story. Among the states that we were previously interested in, Massachussetts (along with Iowa and New Hampshire) was among the earliest states in the country to implement tax incentive programs in the form of property tax exemptions between 1975 and 1980. New York only implemented a similar property tax exemption in 1988. Meanwhile, the earliest incentive program available to the residential sector in New Jersey was the adoption of Solar Renewable Energy Certificates (SREC) in 2004, where the state could purchase surplus solar energy from households via SRECs in order to meet the renewable energy production quota set in its Renewable Portfolio Standard. 
@@ -627,12 +620,12 @@ panels_by_pop %>%
         legend.direction = "horizontal",
         legend.position = c(0.12, 0.97))
 
-# ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
+ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
 ```
 
-It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be they property tax exemptions, tax credits, low-interest financing plans, etc. 
+It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be they property tax exemptions, tax credits, low-interest financing plans, etc. We'll need a bit more contextual research to be able to meaningfully distinguish between them.
 
-Installing a solar panel system may or may not be environmentally-motivated, but we can safely say it is  primarily a financial decision. Buyers put up with a high fixed cost upfront in order to enjoy long-term savings in the future, so the cheaper the cost of installation, the more likely installing solar panels will make financial sense. That suggests we should look at other factors impacting the cost of installing solar panels. We can start with the most obvious one - the cost of the panels themselves.
+Meanwhile, installing a solar panel system may or may not be environmentally-motivated, but we can safely say it is a decision with a large financial component. Buyers put up with a high fixed cost upfront in order to enjoy long-term savings in the future, so the cheaper the cost of installation, the more likely installing solar panels will make financial sense. That suggests we should look at other factors impacting the cost of installing solar panels. We can start with the most obvious one - the cost of the panels themselves.
 
 # How have solar panel costs changed? 
 
@@ -643,6 +636,7 @@ panels %>%
   filter(install_type == "residential") %>%
   filter(year_installed >= 1997) %>% 
   mutate(year_installed = factor(year_installed)) %>%
+  ##### PLOT BEGINS
   ggplot(aes(x = cost_per_watt, y = fct_rev(year_installed))) +
   geom_density_ridges_gradient(aes(fill = ..x..),
                       color = "#FFFFFF",
@@ -651,12 +645,12 @@ panels %>%
                       scale = 5) +
   scale_x_continuous(breaks = seq(0, 30, 5),
                      labels = c("$0", "$5", "$10", "$15", "$20", "$25", "$30")) +
-  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F", #FFE900, #FF810F
+  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
                       name = "Cost per watt",
                       breaks = seq(0, 30, 10),
                       labels = c("$0", "$10", "$20", "$30")) + 
-  labs(title = "Solar panels have become steadily cheaper",
-       subtitle = "When accounting for a solar panel's generative capacity (using cost-per-watt), \nsolar panel costs have decreased and become more consistent over the last 20 years.",
+  labs(title = "Residential solar panels have become steadily cheaper",
+       subtitle = "When accounting for a solar panel's generative capacity (using cost-per-watt), the cost of \nresidential solar panels have decreased and become more consistent over the last 20 years.",
        x = "Cost per watt",
        caption = "Data sources: NREL (U.S. Dept of Energy)") +
   annotate("text",
@@ -682,7 +676,7 @@ panels %>%
         axis.text.y = element_text(margin = margin(0, 0, 0, 5)),
         axis.title.y = element_blank()) 
 
-# ggsave(here('output', 'panel-cpw-by-year.png'), width = 8, height = 6)
+ggsave(here('output', 'panel-cpw-by-year.png'), width = 8, height = 6)
 ```
 
 While panels have gotten cheaper overall, what does this change look like for specific states? In particular, how has cost-per-watt changed for the three Northeast states we identified above - Massachussetts, New York, and New Jersey - that generated disproportionately high levels of solar energy relative to the solar irradiance they received? 
@@ -693,6 +687,7 @@ panels %>%
   filter(year_installed >= 1990) %>%
   group_by(state, year_installed) %>%
   summarize(med_cpw = median(cost_per_watt, na.rm = TRUE)) %>%
+  ##### PLOT BEGINS
   ggplot(aes(x = year_installed, y = med_cpw)) +
   geom_step(aes(color = state),
             na.rm = T,
@@ -711,21 +706,22 @@ panels %>%
   theme_custom() +
   theme(panel.grid.major.x = element_blank())
 
-# ggsave(here('output', 'panel-cpw-nestates.png'), width = 8, height = 6)
+ggsave(here('output', 'panel-cpw-nestates.png'), width = 8, height = 6)
 ```
 
 Interestingly enough, when looking at the path of each state's median cost-per-watt over the course of the past 20 years, MA, NY and NJ all have had median costs on the high end of each year's distribution. This places a wrench in my original hypothesis. It seems like we might need different data - say, cost-per-watt relative to each state's median income. 
 
 # Next steps
 
-As an ongoing project, we will next look at the following factors as possible correlates of solar panel installation rates:
+As an ongoing project, I'd next like to look at the following factors as possible correlates of solar panel installation rates:
 
 - Cost of electricity in each state 
 
 - A deeper look into the types of state tax incentives enacted, i.e. whether it was a tax deduction, a tax credit, a tax exemption, a low-interest loan program, size of the state's renewable portfolio standard, and so on.
 
+# Resources
 
-# Data Sources
+## Data Sources
 
 - Solar Energy Generation: [State Energy Data Systems (SEDS), U.S. Energy Information Administration](https://www.eia.gov/state/seds/)
 
@@ -737,3 +733,8 @@ As an ongoing project, we will next look at the following factors as possible co
 
 - State Policies: [Database of State Incentives for Renewables & Efficiency (DSIRE), North Carolina State University](http://www.dsireusa.org/resources/data-and-tools/)
 
+## Other
+
+- Fonts: Asap, via [Google Fonts](https://fonts.google.com/specimen/Asap)
+
+- Code for map color scale adapted from [Timo Grossenbacher](https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only/)
