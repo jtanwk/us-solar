@@ -1,4 +1,4 @@
-# Shining a Light on Household Solar Energy Generation in the U.S.
+# Shining a Light on U.S. Household Solar Energy Generation
 A visual exploration of US solar panel installations and its drivers.
 
 Work in progress. [View the R Notebook here.](https://jtanwk.github.io/us-solar/)
