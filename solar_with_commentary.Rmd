@@ -762,6 +762,8 @@ As an ongoing project, I'd next like to look at the following factors as possibl
 
 - State Policies: [Database of State Incentives for Renewables & Efficiency (DSIRE), North Carolina State University](http://www.dsireusa.org/resources/data-and-tools/)
 
+- US county-level shapefiles (500km resolution): [U.S. Census Bureau](https://www.census.gov/geo/maps-data/data/cbf/cbf_counties.html)
+
 ## Other
 
 - Fonts: Asap, via [Google Fonts](https://fonts.google.com/specimen/Asap)
