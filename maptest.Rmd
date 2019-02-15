@@ -17,7 +17,183 @@ library(noncensus) # for more geocoding data
 
 library(gridExtra)
 library(magrittr)
+
+load(here('data', 'solar_data_master.RData'))
 ```
+
+
+```{r}
+library(urbnmapr)
+library(lwgeom)
+
+urbnmapr::counties %>%
+  ggplot(aes(long, lat, group = group)) +
+  geom_polygon(fill = "grey", 
+               color = "#ffffff", 
+               size = 0.05) +
+  coord_map(projection = "albers", 
+            lat0 = 39, lat1 = 45)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(urbnmapr)
+library(lwgeom)
+
+View(urbnmapr::counties)
+
+ggplot() + 
+  geom_polygon(data = urbnmapr::states,
+               aes(x = long, y = lat, group = group),
+		           fill = "grey",
+		           color = "white") +
+  coord_map(projection = "albers",
+            lat0 = 39, lat1 = 45) +
+  theme_custom()
+
+
+
+household_data <- left_join(countydata, counties, by = "county_fips") 
+
+household_data %>%
+  ggplot(aes(long, lat, group = group, fill = medhhincome)) +
+  geom_polygon(color = NA) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  labs(fill = "Median Household Income")
+
+
+urbnmapr::counties %>% View()
+  st_as_sf(coords = c("long", "lat")) %>%
+  group_by(state_abbv, piece) %>% 
+  summarize(do_union = FALSE) %>%
+  st_cast("POLYGON") %>%
+  # convert polygons to multipolygons for states with discontinuous regions
+  group_by(state_abbv) %>%
+  st_make_va
+  summarize() %>% View()
+
+urbnmapr::counties %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select('State FIPS', avg) %>%
+              rename(StateFIPS = 'State FIPS') %>%
+              mutate(StateFIPS = as.character(
+                ifelse(nchar(StateFIPS) == 1, 
+                       paste0('0', StateFIPS),
+                       StateFIPS)
+                )),
+            by = c("state_fips" = "StateFIPS")) %>%
+  left_join(zip_codes %>%
+              select(fips, zip),
+            by = c("county_fips" = "fips")) %>%
+  left_join(panels %>%
+              group_by(zipcode) %>%
+              count(),
+            by = c("zip" = "zipcode")) %>%
+  left_join(counties %>%
+              mutate(geoid = paste0(state_fips, county_fips)) %>%
+              select(geoid, population),
+            by = c("county_fips" = "geoid")) %>%
+  group_by(county_fips) %>%
+  mutate(total_n = sum(n, na.rm = TRUE)) %>%
+  mutate(panels_per_10k = 10000 * (total_n / population)) %>%
+  select(long, lat, order, hole, piece, group, county_fips, avg, panels_per_10k) %>%
+  unique() %>%
+  arrange(desc(panels_per_10k)) %>%
+  ##### 
+  ggplot(aes(long, lat, group = group)) +
+  geom_polygon(color = NA) +
+  coord_map(project = "albers", lat0 = 39, lat1 = 45) +
+  theme_custom()
+                
+
+
+
+county_map %>%
+  st_transform(2163) %>%
+  mutate(STATEFP = as.character(STATEFP),
+         GEOID = as.character(GEOID)) %>%
+  select(STATEFP, COUNTYFP, GEOID, geometry) %>% 
+  left_join(us_states %>%
+              select(fips, postal) %>%
+              mutate(fips = substr(fips, 3, 4)) %>%
+              st_set_geometry(NULL),
+            by = c("STATEFP" = "fips")) %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select('State FIPS', avg) %>%
+              rename(StateFIPS = 'State FIPS') %>%
+              mutate(StateFIPS = as.character(
+                ifelse(nchar(StateFIPS) == 1, 
+                       paste0('0', StateFIPS),
+                       StateFIPS)
+              )),
+            by = c("STATEFP" = "StateFIPS")) %>%
+  left_join(zip_codes %>%
+              select(fips, zip),
+            by = c("GEOID" = "fips")) %>%
+  left_join(panels %>%
+              group_by(zipcode) %>%
+              count(),
+            by = c("zip" = "zipcode")) %>%
+  left_join(counties %>%
+              mutate(geoid = paste0(state_fips, county_fips)) %>%
+              select(geoid, population),
+            by = c("GEOID" = "geoid")) %>%
+  group_by(GEOID) %>%
+  mutate(total_n = sum(n, na.rm = TRUE)) %>%
+  mutate(panels_per_10k = 10000 * (total_n / population)) %>%
+  select(GEOID, avg, panels_per_10k, geometry) %>%
+  unique() %>%
+  mutate(cent = st_centroid(geometry)) %>%
+  arrange(desc(panels_per_10k))
+
+
+
+urbnmapr::counties %>%
+  st_as_sf(coords = c("long", "lat")) %>%
+  group_by(state_abbv, piece) %>% 
+  summarize(do_union = FALSE) %>%
+  st_cast("POLYGON") %>%
+  # convert polygons to multipolygons for states with discontinuous regions
+  group_by(state_abbv) %>%
+  st_make_valid() %>% View()
+  summarize() %>% View()
+```
+
+
+
+
+```{r}
+library(fifty_states)
+data("fifty_states")
+as_tibble(fifty_states)
+
+fifty_states %>%
+  st_as_sf(coords = c("long", "lat")) %>%
+  group_by(id, piece) %>% 
+  summarize(do_union = FALSE) %>%
+  st_cast("POLYGON") %>%
+  st_set_crs(4326) %>%
+  ggplot() + 
+  geom_sf()
+
+```
+
+
+
+
 
 # Solar Irradiance State Data
 
@@ -46,6 +222,7 @@ map1 <- county_map %>%
               select(GEOID, population),
             by = c("GEOID" = "GEOID")) %>%
   mutate(panels_per_10k = ((n * 10000) / population)) %>%
+  ##### PLOT BEGINS
   ggplot() +
   geom_sf(aes(fill = panels_per_10k),
           color = "transparent") + 
@@ -55,8 +232,7 @@ map1 <- county_map %>%
           size= 0.1) +
   coord_sf(xlim = bounds[, 1], 
            ylim = bounds[, 2]) +
-  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
-                      #low = "#1949E3", high = "#EE4A1E",
+  scale_fill_gradient(low = theme_purple, high = theme_orange,
                       na.value = "#FFFFFF",
                       name = "Panels per 10,000 people",
                       breaks = seq(0, 400, 50),
@@ -71,10 +247,11 @@ map1 <- county_map %>%
                         byrow = TRUE,
                         label.position = "bottom"
                       )) +
-  labs(title = "Title",
-       subtitle = "Panels per 10K people by county") +
+  labs(title = "Where the solar panels are...",
+       subtitle = "Panels per 10K people by county",
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
   theme_custom() +
-  theme(panel.grid = element_line(color = "#FFFFFF"),
+  theme(panel.grid.major = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
         axis.title = element_blank(),
         legend.position = "bottom",
@@ -87,12 +264,13 @@ map2 <- us_states %>%
               filter(period == "Ann") %>%
               select(State, avg),
             by = c("name" = "State")) %>%
+  ##### PLOT BEGINS
   ggplot() +
   geom_sf(aes(fill = avg),
           color = "transparent") +
   coord_sf(xlim = bounds[, 1], 
            ylim = bounds[, 2]) +
-  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
+  scale_fill_gradient(low = theme_purple, high = theme_orange,
                       na.value = "#FFFFFF",
                       name = "Annual Solar Resource (kWh/m^2/day)",
                       breaks = seq(3, 6, 0.5),
@@ -107,36 +285,24 @@ map2 <- us_states %>%
                         byrow = TRUE,
                         label.position = "bottom"
                       )) +
-  # geom_point(data = panels %>%
-  #              filter(install_type == "residential") %>%
-  #              group_by(zipcode) %>%
-  #              count() %>% 
-  #              left_join(zip_codes, by = c("zipcode" = "zip")),
-  #            aes(x = longitude, y = latitude, size = n),
-  #            color = "#000000",
-  #            fill = "transparent",
-  #            alpha = 0.1,
-  #            na.rm = TRUE) +
-  labs(title = "Title",
+  labs(title = "...versus how much sun they get",
        subtitle = "Average annual solar irradiance by state",
        caption = "Data source: NREL (U.S. Dept of Energy)") +
   theme_custom() +
   theme(legend.position = "bottom",
         legend.title = element_text(size = 8),
-        panel.grid = element_line(color = "#FFFFFF"),
+        panel.grid.major = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
         axis.title = element_blank())
 
+# grid.arrange(map1, map2, ncol = 2)
 pair_map <- grid.arrange(map1, map2, ncol = 2)
 ggsave(filename = here::here('output', 'map-pair.png'),
-       plot = pair_map,
-       width = 12, height = 5)
+      plot = pair_map,
+      width = 12, height = 5)
 ```
 
-
-
-
-```{r, warning=F, message=F, fig.width = 8, fig.height = 5}
+```{r, warning=F, message=F, fig.width = 4, fig.height = 2.5}
 # Specify map bounds 
 bounds <- data_frame(LONG = c(-122, -60),
                      LAT = c(22, 46)) %>%
@@ -225,141 +391,5 @@ county_map %>%
 
 
 
-
-
-
-
-```{r, warning=FALSE, message=FALSE}
-# Specify map bounds 
-bounds <- data_frame(LONG = c(-122, -60),
-                     LAT = c(22, 46)) %>%
-  st_as_sf(coords = c("LONG", "LAT"),
-           crs = 4326) %>%
-  st_transform(crs = 2163) %>%
-  st_coordinates()
-
-# Plot map
-
-county_map %>%
-  st_transform(2163) %>%
-  select(STATEFP, COUNTYFP, GEOID, geometry) %>%
-  left_join(counties %>%
-              select(county_fips, population),
-            by = c("COUNTYFP" = "county_fips")) %>%
-  left_join(zip_codes %>%
-              select(fips, zip),
-            by = c("GEOID" = "fips")) %>%
-  left_join(panels %>%
-              group_by(zipcode) %>%
-              count(),
-            by = c("zip" = "zipcode")) %>%
-  left_join(us_states %>%
-              select(fips, postal, name) %>%
-              mutate(fips = substr(fips, 3, 4)) %>%
-              st_set_geometry(NULL),
-            by = c("STATEFP" = "fips")) %>%
-  left_join(ghi %>%
-              filter(period == "Ann") %>%
-              select(State, avg),
-            by = c("name" = "State")) %>% 
-  group_by(GEOID) %>%
-  mutate(n = sum(n, na.rm = TRUE)) %>%
-  mutate(panels_per_10k = n / population) %>% 
-  select(GEOID, panels_per_10k, avg, geometry) %>%
-  unique() %>%
-  mutate(cent = st_centroid(geometry)) %>%
-  # mutate(cent = ifelse(n == 0, NA, n)) %>%
-  arrange(desc(n)) %>%
-  ##### PLOT BEGINS
-  ggplot() +
-  geom_sf(aes(geometry = geometry),
-          fill = "#FFFFFF",
-          color = "#DDDDDD") +
-  geom_sf(aes(geometry = cent,
-              color = avg,
-              size = n),
-          fill = "#FFFFFF",
-          alpha = 0.5) +
-  coord_sf(xlim = bounds[, 1],
-           ylim = bounds[, 2],
-           expand = FALSE) +
-  scale_color_gradient(low = "#5D2BF0", high = "#FF810F",
-                        na.value = "#FFFFFF",
-                        name = "Annual Solar \nResource \n(kWh/m^2/day)",
-                        guide = guide_legend(
-                          direction = "vertical",
-                          keyheight = unit(10, units = "mm"),
-                          keywidth = unit(2, units = "mm"),
-                          title.position = "top",
-                          title.hjust = 0,
-                          label.vjust = 1)) +
-  scale_size(name = "Number of Panels") +
-  labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
-       subtitle = "Average annual solar irradiance by state",
-       caption = "Data source: NREL (U.S. Dept of Energy)") +
-  theme_custom() +
-  theme(legend.title = element_text(size = 8),
-        panel.grid.major = element_line(color = "transparent"),
-        axis.text = element_blank(),
-        axis.title = element_blank())
-
-```
-
-
-
-
-```{r}
-us_states %>%
-  st_transform(2163) %>%
-  left_join(panels_by_pop %>%
-              filter(year == 2016) %>%
-              select(state, panels_per_10k),
-            by = c("postal" = "state")) %>%
-  ggplot() +
-  geom_sf(aes(fill = panels_per_10k),
-          color = "white") +
-  coord_sf(xlim = c(-1895516.48, 2210772.95),
-           ylim = c(-2073330.36, 813925.19)) +
-  scale_fill_gradient(low = "#1949E3", high = "#EE4A1E",
-                      na.value = "#CFCFCF",
-                      name = "Panels per 10,000 people",
-                      guide = guide_legend(
-                        direction = "horizontal",
-                        keyheight = unit(2, units = "mm"),
-                        keywidth = unit(10, units = "mm"),
-                        title.position = "top",
-                        title.hjust = 0,
-                        label.hjust = 1,
-                        nrow = 1,
-                        byrow = TRUE,
-                        label.position = "bottom"
-                      )) +
-  theme_minimal() +
-  theme(panel.grid = element_line(color = "transparent"),
-        axis.text = element_blank(),
-        legend.position = "bottom",
-        legend.title = element_text(size = 10))
-```
-
-```{r}
-us_states %>%
-  filter(!name %in% c("Alaska", "Hawaii")) %>%
-  ggplot() +
-  geom_sf(color = "#FFFFFF") +
-  geom_point(data = panels %>%
-               filter(install_type == "residential") %>%
-               group_by(zipcode) %>%
-               count() %>% 
-               left_join(zipcode, by = c("zipcode" = "zip")),
-             aes(x = longitude, y = latitude, size = n),
-             color = "#ee4a1e",
-             alpha = 0.1,
-             na.rm = TRUE) +
-  theme_minimal() +
-  theme(panel.grid = element_line(color = "#FFFFFF"),
-        axis.text = element_blank(),
-        axis.title = element_blank())
-
-```
 
 

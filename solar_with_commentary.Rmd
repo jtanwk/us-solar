@@ -241,206 +241,6 @@ That brings me to my next question: does the amount of sunlight each state recei
 
 For this, we'll use solar irradiance data from the Department of Energy's [National Renewable Energy Laboratory](https://www.nrel.gov/gis/data-solar.html). Specifically, we're looking at Global Horizontal Irradiance (GHI), which is the amount of solar radiation a surface receives if placed horizonal to the ground, measured in kilowatt-hours per square meter per day ($kWh/m^2/day$). Since we're dealing with residential installations here, roofs might be sloped in a particular direction, but we'll assume that they more or less average out to horizontal position in the full dataset. 
 
-
-```{r, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 2.5}
-# Specify map bounds 
-bounds <- data_frame(LONG = c(-122, -64),
-                     LAT = c(24, 49)) %>%
-  st_as_sf(coords = c("LONG", "LAT"),
-           crs = 4326) %>%
-  st_transform(crs = 2163) %>%
-  st_coordinates()
-
-# Plot Solar Panel Map
-map1 <- county_map %>%
-  st_transform(2163) %>%
-  mutate(COUNTYFP = as.character(COUNTYFP)) %>%
-  left_join(panels %>%
-              filter(install_type == "residential") %>%
-              select(zipcode) %>%
-              left_join(zip_codes, by = c("zipcode" = "zip")) %>%
-              group_by(fips) %>%
-              count(),
-            by = c("GEOID" = "fips")) %>%
-  left_join(counties %>%
-              mutate(GEOID = paste0(state_fips, county_fips)) %>%
-              select(GEOID, population),
-            by = c("GEOID" = "GEOID")) %>%
-  mutate(panels_per_10k = ((n * 10000) / population)) %>%
-  ##### PLOT BEGINS
-  ggplot() +
-  geom_sf(aes(fill = panels_per_10k),
-          color = "transparent") + 
-  geom_sf(data = us_states,
-          fill = "transparent",
-          color = "#FFFFFF",
-          size= 0.1) +
-  coord_sf(xlim = bounds[, 1], 
-           ylim = bounds[, 2]) +
-  scale_fill_gradient(low = theme_purple, high = theme_orange,
-                      na.value = "#FFFFFF",
-                      name = "Panels per 10,000 people",
-                      breaks = seq(0, 400, 50),
-                      guide = guide_legend(
-                        direction = "horizontal",
-                        keyheight = unit(2, units = "mm"),
-                        keywidth = unit(10, units = "mm"),
-                        title.position = "top",
-                        title.hjust = 0,
-                        label.hjust = 1,
-                        nrow = 1,
-                        byrow = TRUE,
-                        label.position = "bottom"
-                      )) +
-  labs(title = "Where the solar panels are...",
-       subtitle = "Panels per 10K people by county",
-       caption = "Data source: NREL (U.S. Dept of Energy)") +
-  theme_custom() +
-  theme(panel.grid.major = element_line(color = "#FFFFFF"),
-        axis.text = element_blank(),
-        axis.title = element_blank(),
-        legend.position = "bottom",
-        legend.title = element_text(size = 8))
-
-# Plot Solar Resource Map 
-map2 <- us_states %>%
-  st_transform(2163) %>%
-  left_join(ghi %>%
-              filter(period == "Ann") %>%
-              select(State, avg),
-            by = c("name" = "State")) %>%
-  ##### PLOT BEGINS
-  ggplot() +
-  geom_sf(aes(fill = avg),
-          color = "transparent") +
-  coord_sf(xlim = bounds[, 1], 
-           ylim = bounds[, 2]) +
-  scale_fill_gradient(low = theme_purple, high = theme_orange,
-                      na.value = "#FFFFFF",
-                      name = "Annual Solar Resource (kWh/m^2/day)",
-                      breaks = seq(3, 6, 0.5),
-                      guide = guide_legend(
-                        direction = "horizontal",
-                        keyheight = unit(2, units = "mm"),
-                        keywidth = unit(10, units = "mm"),
-                        title.position = "top",
-                        title.hjust = 0,
-                        label.hjust = 1,
-                        nrow = 1,
-                        byrow = TRUE,
-                        label.position = "bottom"
-                      )) +
-  labs(title = "...versus how much sun they get",
-       subtitle = "Average annual solar irradiance by state",
-       caption = "Data source: NREL (U.S. Dept of Energy)") +
-  theme_custom() +
-  theme(legend.position = "bottom",
-        legend.title = element_text(size = 8),
-        panel.grid.major = element_line(color = "#FFFFFF"),
-        axis.text = element_blank(),
-        axis.title = element_blank())
-
-# grid.arrange(map1, map2, ncol = 2)
-pair_map <- grid.arrange(map1, map2, ncol = 2)
-ggsave(filename = here::here('output', 'map-pair.png'),
-      plot = pair_map,
-      width = 12, height = 5)
-```
-
-```{r, message=F, warning=F, fig.width = 4, fig.height = 2.5}
-# Specify map bounds 
-bounds <- data_frame(LONG = c(-122, -60),
-                     LAT = c(22, 46)) %>%
-  st_as_sf(coords = c("LONG", "LAT"),
-           crs = 4326) %>%
-  st_transform(crs = 2163) %>%
-  st_coordinates()
-
-# Plot
-county_map %>%
-  st_transform(2163) %>%
-  mutate(STATEFP = as.character(STATEFP),
-         GEOID = as.character(GEOID)) %>%
-  select(STATEFP, COUNTYFP, GEOID, geometry) %>%
-  left_join(us_states %>%
-              select(fips, postal) %>%
-              mutate(fips = substr(fips, 3, 4)) %>%
-              st_set_geometry(NULL),
-            by = c("STATEFP" = "fips")) %>%
-  left_join(ghi %>%
-              filter(period == "Ann") %>%
-              select('State FIPS', avg) %>%
-              rename(StateFIPS = 'State FIPS') %>%
-              mutate(StateFIPS = as.character(
-                ifelse(nchar(StateFIPS) == 1, 
-                       paste0('0', StateFIPS),
-                       StateFIPS)
-              )),
-            by = c("STATEFP" = "StateFIPS")) %>%
-  left_join(zip_codes %>%
-              select(fips, zip),
-            by = c("GEOID" = "fips")) %>%
-  left_join(panels %>%
-              group_by(zipcode) %>%
-              count(),
-            by = c("zip" = "zipcode")) %>%
-  left_join(counties %>%
-              mutate(geoid = paste0(state_fips, county_fips)) %>%
-              select(geoid, population),
-            by = c("GEOID" = "geoid")) %>%
-  group_by(GEOID) %>%
-  mutate(total_n = sum(n, na.rm = TRUE)) %>%
-  mutate(panels_per_10k = 10000 * (total_n / population)) %>%
-  select(GEOID, avg, panels_per_10k, geometry) %>%
-  unique() %>%
-  mutate(cent = st_centroid(geometry)) %>%
-  arrange(desc(panels_per_10k)) %>%
-  ##### PLOT BEGINS
-  ggplot() +
-  geom_sf(fill = "#FFFFFF",
-          color = theme_bg_gray,
-          size = 0.1) +
-  geom_sf(aes(geometry = cent,
-              size = panels_per_10k,
-              fill = avg),
-          colour = "#FFFFFF",
-          alpha = 0.8,
-          pch = 21,
-          show.legend = "point",
-          na.rm = TRUE) +
-  scale_fill_gradient(low = theme_purple, high = theme_orange,
-                      na.value = "#FFFFFF",
-                      name = "Annual Solar \nResource \n(kWh/m^2/day)",
-                      guide = guide_colorbar(
-                        barheight = unit(40, units = "mm"),
-                        barwidth = unit(3, units = "mm"),
-                        title.hjust = 0,
-                        ticks.linewidth = 1
-                      )) +
-  scale_size(name = "Panels \nper 10K",
-             guide = guide_legend(
-               override.aes = list(shape = 16, color = "#000000")
-             )) +
-  coord_sf(xlim = bounds[, 1], 
-         ylim = bounds[, 2],
-         expand = FALSE) +
-  labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
-       subtitle = "Average annual solar irradiance by state",
-       caption = "Data source: NREL (U.S. Dept of Energy)") +
-  theme_custom() +
-  theme(legend.title = element_text(size = 8),
-        panel.grid.major = element_line(color = "#FFFFFF"),
-        axis.text = element_blank(),
-        axis.title = element_blank())
-
-# TODO: Add explanatory caption; annotation text
-# TODO: Add Hawaii and Alaska
-# Do I still need a Northeast callout map?
-```
-
-
-As we've seen before, however, map pairs aren't the best at showing correlation. So let's try another way of looking at how solar energy generation correlates with solar irradiance.
-
 ```{r ghi-vs-gen, warning = F, message = F, fig.align = 'center', fig.width = 4, fig.height = 3}
 gen %>%
   filter(Year == 2016) %>%
@@ -581,6 +381,108 @@ ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
 ```
 
 Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. The question now becomes - **why**? As we saw before, the Northeast region as a group receives the lowest annual solar irradiance among all the states. I definitely wouldn't go to Boston for a beach weekend.  
+
+```{r, message=F, warning=F, fig.width = 4, fig.height = 2.5}
+# Specify map bounds 
+bounds <- tibble(LONG = c(-122, -60),
+                 LAT = c(22, 46)) %>%
+  st_as_sf(coords = c("LONG", "LAT"),
+           crs = 4326) %>%
+  st_transform(crs = 2163) %>%
+  st_coordinates()
+
+# Plot
+county_map %>%
+  st_transform(2163) %>%
+  mutate(STATEFP = as.character(STATEFP),
+         GEOID = as.character(GEOID)) %>%
+  select(STATEFP, COUNTYFP, GEOID, geometry) %>%
+  left_join(us_states %>%
+              select(fips, postal) %>%
+              mutate(fips = substr(fips, 3, 4)) %>%
+              st_set_geometry(NULL),
+            by = c("STATEFP" = "fips")) %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select('State FIPS', avg) %>%
+              rename(StateFIPS = 'State FIPS') %>%
+              mutate(StateFIPS = as.character(
+                ifelse(nchar(StateFIPS) == 1, 
+                       paste0('0', StateFIPS),
+                       StateFIPS)
+              )),
+            by = c("STATEFP" = "StateFIPS")) %>%
+  left_join(zip_codes %>%
+              select(fips, zip),
+            by = c("GEOID" = "fips")) %>%
+  left_join(panels %>%
+              group_by(zipcode) %>%
+              count(),
+            by = c("zip" = "zipcode")) %>%
+  left_join(counties %>%
+              mutate(geoid = paste0(state_fips, county_fips)) %>%
+              select(geoid, population),
+            by = c("GEOID" = "geoid")) %>%
+  group_by(GEOID) %>%
+  mutate(total_n = sum(n, na.rm = TRUE)) %>%
+  mutate(panels_per_10k = 10000 * (total_n / population)) %>%
+  mutate(panels_per_10k = ifelse(is.na(panels_per_10k), 0, panels_per_10k)) %>%
+  select(GEOID, avg, panels_per_10k, geometry) %>%
+  unique() %>%
+  mutate(cent = st_centroid(geometry)) %>%
+  arrange(desc(panels_per_10k)) %>% 
+  ##### PLOT BEGINS
+  ggplot() +
+  geom_sf(fill = "#FFFFFF",
+          color = theme_bg_gray,
+          size = 0.1) +
+  geom_sf(aes(geometry = cent,
+              size = panels_per_10k,
+              fill = avg),
+          colour = "#FFFFFF",
+          alpha = 0.8,
+          pch = 21,
+          show.legend = "point",
+          na.rm = TRUE) +
+  scale_fill_gradient(low = theme_purple, high = theme_orange,
+                      na.value = "#FFFFFF",
+                      name = "Annual Solar \nRadiation \n(kWh/m^2/day)",
+                      guide = guide_colorbar(
+                        barheight = unit(40, units = "mm"),
+                        barwidth = unit(3, units = "mm"),
+                        title.hjust = 0,
+                        ticks.linewidth = 1
+                      )) +
+  scale_size_area(name = "Panels \nper 10K",
+             guide = guide_legend(
+               override.aes = list(shape = 16, color = "#000000")
+             )) +
+  coord_sf(xlim = bounds[, 1], 
+         ylim = bounds[, 2],
+         expand = FALSE) +
+  labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
+       subtitle = "While the Northeast region receives the least solar irradiance in the US, it also has states with \ndisproportionately high solar panel installation rates.",
+       caption = "Data source: NREL (U.S. Dept of Energy) \nNote: HI and AK are omitted due to lack of comparable solar resource data available.") +
+  annotate("text",
+           x = 2300000, y = -150000,
+           label = "Dukes County, MA \nhas 460 panels per \n10K residents, vs. \nnational avg. of 28",
+           family = "Asap",
+           fontface = "italic",
+           size = 2,
+           lineheight = 1,
+           hjust = 0, vjust = 1) +
+  annotate("segment",
+           x = 2500000, xend = 2400000, y = -100000, yend = 0,
+           color = "#000000",
+           size = 0.2) +
+  theme_custom() +
+  theme(legend.title = element_text(size = 8),
+        panel.grid.major = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+
+ggsave(here('output', 'panels-vs-ghi-map.png'), width = 8, height = 6)
+```
 
 A simple hypothesis is that some of these states pursue more "green" policies compared to other states. In order to compare them, however, how do we quantify a state's commitment to environmental policy? 
 
@@ -812,14 +714,14 @@ panels %>%
             alpha = 0.8,
             na.rm = T,
             show.legend = FALSE) +
-  gghighlight(state %in% c("VT", "MA", "NJ"),
+  gghighlight(state %in% c("CT", "MA", "NJ"),
               unhighlighted_colour = theme_bg_gray,
               use_group_by = F,
               use_direct_label = F) +
   facet_wrap(~ state) +
   scale_color_manual(values = c(theme_orange, theme_green, theme_purple)) +
-  labs(title = "MA, NJ still among more expensive states for solar panels",
-       subtitle = "Looking at how the median cost-per-watt has changed for each state over the last 20 years, \nsolar energy generation in  MA and NJ - two of the Northeast states that produced \ndisproportionately higher solar energy relative to their solar irradiance - is also relatively high. \nPrice data was incomplete for VT.",
+  labs(title = "CT, MA, NJ still among more expensive states for solar panels",
+       subtitle = "Looking at how the median cost-per-watt has changed for each state over the last 20 years, \nsolar generation in CT, MA and NJ - three of the Northeast states that showed solar panel \nownership disproportionate to their solar irradiance - is also relatively high.",
        x = "Year",
        y = "Median cost per watt ($/W)",
        caption = "Data source: NREL (U.S. Dept of Energy)") +
@@ -830,7 +732,7 @@ panels %>%
 ggsave(here('output', 'panel-cpw-nestates.png'), width = 8, height = 6)
 ```
 
-Interestingly enough, when looking at the path of each state's median cost-per-watt over the course of the past 20 years, MA, NY and NJ all have had median costs on the high end of each year's distribution. This places a wrench in my original hypothesis. It seems like we might need different data - say, cost-per-watt relative to each state's median income. 
+Interestingly enough, when looking at the path of each state's median cost-per-watt over the course of the past 20 years, CT, MA, and NJ all have had median costs on the high end of each year's distribution. This places a wrench in my original hypothesis. It seems like we might need different data - say, cost-per-watt relative to each state's median income. 
 
 # Next steps
 
