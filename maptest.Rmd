@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE)
 
 library(tidyverse)
 library(lubridate)
@@ -133,7 +134,9 @@ ggsave(filename = here::here('output', 'map-pair.png'),
 ```
 
 
-```{r, warning=FALSE, message=FALSE}
+
+
+```{r, warning=F, message=F, fig.width = 8, fig.height = 5}
 # Specify map bounds 
 bounds <- data_frame(LONG = c(-122, -60),
                      LAT = c(22, 46)) %>%
@@ -142,50 +145,71 @@ bounds <- data_frame(LONG = c(-122, -60),
   st_transform(crs = 2163) %>%
   st_coordinates()
 
-# Plot map
-us_states %>%
+# Plot
+county_map %>%
   st_transform(2163) %>%
+  mutate(STATEFP = as.character(STATEFP),
+         GEOID = as.character(GEOID)) %>%
+  select(STATEFP, COUNTYFP, GEOID, geometry) %>%
+  left_join(us_states %>%
+              select(fips, postal) %>%
+              mutate(fips = substr(fips, 3, 4)) %>%
+              st_set_geometry(NULL),
+            by = c("STATEFP" = "fips")) %>%
   left_join(ghi %>%
               filter(period == "Ann") %>%
-              select(State, avg),
-            by = c("name" = "State")) %>%
+              select('State FIPS', avg) %>%
+              rename(StateFIPS = 'State FIPS') %>%
+              mutate(StateFIPS = as.character(
+                ifelse(nchar(StateFIPS) == 1, 
+                       paste0('0', StateFIPS),
+                       StateFIPS)
+              )),
+            by = c("STATEFP" = "StateFIPS")) %>%
+  left_join(zip_codes %>%
+              select(fips, zip),
+            by = c("GEOID" = "fips")) %>%
+  left_join(panels %>%
+              group_by(zipcode) %>%
+              count(),
+            by = c("zip" = "zipcode")) %>%
+  left_join(counties %>%
+              mutate(geoid = paste0(state_fips, county_fips)) %>%
+              select(geoid, population),
+            by = c("GEOID" = "geoid")) %>%
+  group_by(GEOID) %>%
+  mutate(total_n = sum(n, na.rm = TRUE)) %>%
+  mutate(panels_per_10k = 10000 * (total_n / population)) %>%
+  select(GEOID, avg, panels_per_10k, geometry) %>%
+  unique() %>%
+  mutate(cent = st_centroid(geometry)) %>%
+  arrange(desc(panels_per_10k)) %>%
+  ##### PLOT BEGINS
   ggplot() +
-  geom_sf(aes(fill = avg),
-          color = "transparent") +
-  scale_fill_gradient(low = "#5D2BF0", high = "#FF810F",
-                      na.value = "#FFFFFF",
-                      name = "Annual Solar \nResource \n(kWh/m^2/day)",
-                      guide = guide_legend(
-                        direction = "vertical",
-                        keyheight = unit(10, units = "mm"),
-                        keywidth = unit(2, units = "mm"),
-                        title.position = "top",
-                        title.hjust = 0,
-                        label.vjust = 1
-                      )) +
-  geom_sf(data = county_map %>%
-            st_transform(2163) %>%
-            select(GEOID, geometry) %>%
-            left_join(zip_codes %>%
-                        select(fips, zip),
-                      by = c("GEOID" = "fips")) %>%
-            left_join(panels %>%
-                        group_by(zipcode) %>%
-                        count(),
-                      by = c("zip" = "zipcode")) %>%
-            group_by(GEOID) %>%
-            mutate(n = sum(n, na.rm = TRUE)) %>%
-            select(GEOID, n, geometry) %>%
-            unique() %>%
-            mutate(cent = st_centroid(geometry)) %>%
-            arrange(desc(n)) ,
-          aes(geometry = cent,
-              size = n),
-          alpha = 0.5,
-          color = "#FFFFFF",
-          fill = "#FFFFFF",
+  geom_sf(fill = "#FFFFFF",
+          color = theme_bg_gray,
+          size = 0.1) +
+  geom_sf(aes(geometry = cent,
+              size = panels_per_10k,
+              fill = avg),
+          colour = "#FFFFFF",
+          alpha = 0.8,
+          pch = 21,
           show.legend = "point",
           na.rm = TRUE) +
+  scale_fill_gradient(low = theme_purple, high = theme_orange,
+                      na.value = "#FFFFFF",
+                      name = "Annual Solar \nResource \n(kWh/m^2/day)",
+                      guide = guide_colorbar(
+                        barheight = unit(40, units = "mm"),
+                        barwidth = unit(3, units = "mm"),
+                        title.hjust = 0,
+                        ticks.linewidth = 1
+                      )) +
+  scale_size(name = "Panels \nper 10K",
+             guide = guide_legend(
+               override.aes = list(shape = 16, color = "#000000")
+             )) +
   coord_sf(xlim = bounds[, 1], 
          ylim = bounds[, 2],
          expand = FALSE) +
@@ -194,10 +218,14 @@ us_states %>%
        caption = "Data source: NREL (U.S. Dept of Energy)") +
   theme_custom() +
   theme(legend.title = element_text(size = 8),
-        panel.grid = element_line(color = "#FFFFFF"),
+        panel.grid.major = element_line(color = "#FFFFFF"),
         axis.text = element_blank(),
         axis.title = element_blank())
 ```
+
+
+
+
 
 
 

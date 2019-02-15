@@ -347,6 +347,98 @@ ggsave(filename = here::here('output', 'map-pair.png'),
       width = 12, height = 5)
 ```
 
+```{r, message=F, warning=F, fig.width = 4, fig.height = 2.5}
+# Specify map bounds 
+bounds <- data_frame(LONG = c(-122, -60),
+                     LAT = c(22, 46)) %>%
+  st_as_sf(coords = c("LONG", "LAT"),
+           crs = 4326) %>%
+  st_transform(crs = 2163) %>%
+  st_coordinates()
+
+# Plot
+county_map %>%
+  st_transform(2163) %>%
+  mutate(STATEFP = as.character(STATEFP),
+         GEOID = as.character(GEOID)) %>%
+  select(STATEFP, COUNTYFP, GEOID, geometry) %>%
+  left_join(us_states %>%
+              select(fips, postal) %>%
+              mutate(fips = substr(fips, 3, 4)) %>%
+              st_set_geometry(NULL),
+            by = c("STATEFP" = "fips")) %>%
+  left_join(ghi %>%
+              filter(period == "Ann") %>%
+              select('State FIPS', avg) %>%
+              rename(StateFIPS = 'State FIPS') %>%
+              mutate(StateFIPS = as.character(
+                ifelse(nchar(StateFIPS) == 1, 
+                       paste0('0', StateFIPS),
+                       StateFIPS)
+              )),
+            by = c("STATEFP" = "StateFIPS")) %>%
+  left_join(zip_codes %>%
+              select(fips, zip),
+            by = c("GEOID" = "fips")) %>%
+  left_join(panels %>%
+              group_by(zipcode) %>%
+              count(),
+            by = c("zip" = "zipcode")) %>%
+  left_join(counties %>%
+              mutate(geoid = paste0(state_fips, county_fips)) %>%
+              select(geoid, population),
+            by = c("GEOID" = "geoid")) %>%
+  group_by(GEOID) %>%
+  mutate(total_n = sum(n, na.rm = TRUE)) %>%
+  mutate(panels_per_10k = 10000 * (total_n / population)) %>%
+  select(GEOID, avg, panels_per_10k, geometry) %>%
+  unique() %>%
+  mutate(cent = st_centroid(geometry)) %>%
+  arrange(desc(panels_per_10k)) %>%
+  ##### PLOT BEGINS
+  ggplot() +
+  geom_sf(fill = "#FFFFFF",
+          color = theme_bg_gray,
+          size = 0.1) +
+  geom_sf(aes(geometry = cent,
+              size = panels_per_10k,
+              fill = avg),
+          colour = "#FFFFFF",
+          alpha = 0.8,
+          pch = 21,
+          show.legend = "point",
+          na.rm = TRUE) +
+  scale_fill_gradient(low = theme_purple, high = theme_orange,
+                      na.value = "#FFFFFF",
+                      name = "Annual Solar \nResource \n(kWh/m^2/day)",
+                      guide = guide_colorbar(
+                        barheight = unit(40, units = "mm"),
+                        barwidth = unit(3, units = "mm"),
+                        title.hjust = 0,
+                        ticks.linewidth = 1
+                      )) +
+  scale_size(name = "Panels \nper 10K",
+             guide = guide_legend(
+               override.aes = list(shape = 16, color = "#000000")
+             )) +
+  coord_sf(xlim = bounds[, 1], 
+         ylim = bounds[, 2],
+         expand = FALSE) +
+  labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
+       subtitle = "Average annual solar irradiance by state",
+       caption = "Data source: NREL (U.S. Dept of Energy)") +
+  theme_custom() +
+  theme(legend.title = element_text(size = 8),
+        panel.grid.major = element_line(color = "#FFFFFF"),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+
+# TODO: Add explanatory caption; annotation text
+# TODO: Add Hawaii and Alaska
+# Do I still need a Northeast callout map?
+```
+
+
 As we've seen before, however, map pairs aren't the best at showing correlation. So let's try another way of looking at how solar energy generation correlates with solar irradiance.
 
 ```{r ghi-vs-gen, warning = F, message = F, fig.align = 'center', fig.width = 4, fig.height = 3}
