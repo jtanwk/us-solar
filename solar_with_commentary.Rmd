@@ -73,6 +73,14 @@ theme_custom <- function(base_size = 12, base_family = "",
                                    size = 12,
                                    face = "plain",
                                    margin = margin(10, 10, 10, 10)),
+          axis.text.x = element_text(family = "Asap",
+                                     size = 10,
+                                     face = "plain",
+                                     margin = margin(0, 0, 5, 0)),
+          axis.text.y = element_text(family = "Asap",
+                                     size = 10,
+                                     face = "plain",
+                                     margin = margin(0, 0, 0, 5)),          
           legend.title = element_text(family = "Asap SemiBold",
                                       size = 10,
                                       color = "#3F3F3F"),
@@ -149,7 +157,7 @@ gen %>%
   theme_custom() +
   theme(panel.grid.major.x = element_blank())
 
-ggsave(here('output', 'gen-by-source.png'), width = 8, height = 6)
+ggsave(here('output', '01-gen-by-source.png'), width = 8, height = 6)
 ```
 
 A logical next question is: who's actually capturing all this solar energy? 
@@ -230,7 +238,7 @@ gen %>%
         axis.text.y = element_blank()) +
   coord_flip()
 
-ggsave(here('output', 'gen-by-state-mul.png'), width = 8, height = 8)
+ggsave(here('output', '02-gen-by-state-mul.png'), width = 8, height = 8)
 ```
 
 Unsurprisingly, California was the single largest **residential** generator of solar energy in 2016 - in fact, California and Arizona combined generated more than half of the national total. What is a bit more of a surprise is how high on the list the Northeast states like New York (#3), New Jersey (#4), and Massachussetts (#6) lie, particularly in comparison to known sunny states like Nevada (#9), Texas (#10) and Florida (#13).
@@ -326,12 +334,9 @@ gen %>%
            size = 4,
            hjust = 0.5, vjust = 1) +
   theme_custom() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.position = c(0.87, 0.15),
-        legend.background = element_rect(color = "#BFBFBF"))
+  theme(panel.grid.major.x = element_blank())
 
-ggsave(here('output', 'ghi-vs-gen.png'), width = 8, height = 6)
+ggsave(here('output', '03-ghi-vs-gen.png'), width = 8, height = 6)
 ```
 
 A rough upward trend seems to hold for the Western states, although there seems to be a lot of unexplained variation towards the lower end of the irradiance range. Among the Northeast states in red above, Vermont, Massachussetts, and New Jersey in particular are generating way more solar energy than neighboring states that get just as much sunlight, if not more.
@@ -377,7 +382,7 @@ panels_by_pop %>%
                                    margin = margin(0, 0, 10, 0)),
         panel.grid.major.x = element_blank())
 
-ggsave(here('output', 'panels-by-pop-state.png'), width = 8, height = 6)
+ggsave(here('output', '04-panels-by-pop-state.png'), width = 8, height = 6)
 ```
 
 Sure enough - Northeast states like Massachussetts, New Jersey, and Connecticut are among states with the most solar panels per capita in 2016. The question now becomes - **why**? As we saw before, the Northeast region as a group receives the lowest annual solar irradiance among all the states. I definitely wouldn't go to Boston for a beach weekend.  
@@ -481,7 +486,7 @@ county_map %>%
         axis.text = element_blank(),
         axis.title = element_blank())
 
-ggsave(here('output', 'panels-vs-ghi-map.png'), width = 8, height = 6)
+ggsave(here('output', '05-panels-vs-ghi-map.png'), width = 8, height = 6)
 ```
 
 A simple hypothesis is that some of these states pursue more "green" policies compared to other states. In order to compare them, however, how do we quantify a state's commitment to environmental policy? 
@@ -585,7 +590,7 @@ policy %>%
                                          linetype = "blank"),
         axis.text.y.left = element_text(margin = margin(0, 0, 0, 20)))
 
-ggsave(here('output', 'policy-by-state-year.png'), width = 8, height = 10)
+ggsave(here('output', '06-policy-by-state-year.png'), width = 8, height = 10)
 ```
 
 It appears that the availability of renewable ITCs only tell part of the story. Among the states that we were previously interested in, Massachussetts (along with Iowa and New Hampshire) was among the earliest states in the country to implement tax incentive programs in the form of property tax exemptions between 1975 and 1980. New York only implemented a similar property tax exemption in 1988. Meanwhile, the earliest incentive program available to the residential sector in New Jersey was the adoption of Solar Renewable Energy Certificates (SREC) in 2004, where the state could purchase surplus solar energy from households via SRECs in order to meet the renewable energy production quota set in its Renewable Portfolio Standard. 
@@ -640,7 +645,7 @@ panels_by_pop %>%
         legend.direction = "horizontal",
         legend.position = c(0.12, 0.97))
 
-ggsave(here('output', 'panels-vs-policy.png'), width = 10, height = 8)
+ggsave(here('output', '07-panels-vs-policy.png'), width = 10, height = 8)
 ```
 
 It appears that the periods where state-based financial incentives were available do not meaningfully coincide with periods of rapid solar panel installation growth. We are, however, painting with a very broad brush - the periods we've been looking at have been for all types of state incentives, be they property tax exemptions, tax credits, low-interest financing plans, etc. We'll need a bit more contextual research to be able to meaningfully distinguish between them.
@@ -694,10 +699,9 @@ panels %>%
            color = text_black) +
   theme_custom() +
   theme(panel.grid.major.y = element_blank(),
-        axis.text.y = element_text(margin = margin(0, 0, 0, 5)),
-        axis.title.y = element_blank()) 
+        axis.title.y = element_blank())
 
-ggsave(here('output', 'panel-cpw-by-year.png'), width = 8, height = 6)
+ggsave(here('output', '08-panel-cpw-by-year.png'), width = 8, height = 6)
 ```
 
 While panels have gotten cheaper overall, what does this change look like for specific states? In particular, how has cost-per-watt changed for the three Northeast states we identified above - Massachussetts, New York, and New Jersey - that generated disproportionately high levels of solar energy relative to the solar irradiance they received? 
@@ -720,16 +724,16 @@ panels %>%
               use_direct_label = F) +
   facet_wrap(~ state) +
   scale_color_manual(values = c(theme_orange, theme_green, theme_purple)) +
+  scale_y_continuous(labels = c("$0", "$5", "$10", "$15", "$20")) +
   labs(title = "CT, MA, NJ still among more expensive states for solar panels",
        subtitle = "Looking at how the median cost-per-watt has changed for each state over the last 20 years, \nsolar generation in CT, MA and NJ - three of the Northeast states that showed solar panel \nownership disproportionate to their solar irradiance - is also relatively high.",
        x = "Year",
-       y = "Median cost per watt ($/W)",
+       y = "Median cost per watt",
        caption = "Data source: NREL (U.S. Dept of Energy)") +
   theme_custom() +
-  theme(panel.grid.major.x = element_blank(),
-        axis.text.x = element_text(margin = margin(0, 0, 5, 0)))
+  theme(panel.grid.major.x = element_blank())
 
-ggsave(here('output', 'panel-cpw-nestates.png'), width = 8, height = 6)
+ggsave(here('output', '09-panel-cpw-nestates.png'), width = 8, height = 6)
 ```
 
 Interestingly enough, when looking at the path of each state's median cost-per-watt over the course of the past 20 years, CT, MA, and NJ all have had median costs on the high end of each year's distribution. This places a wrench in my original hypothesis. It seems like we might need different data - say, cost-per-watt relative to each state's median income. 
