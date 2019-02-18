@@ -194,7 +194,7 @@ gen %>%
   labs(title = "Hawaii generates over 50x more solar energy per capita than natl. median",
        subtitle = "California was the single largest generator of solar energy from small-scale residential systems, \nproducing 48.6% of all solar energy in the US in 2016. After controlling for state population, however, \nHawaii emerges as the state with the largest solar energy generation per capita.",
        x = "", 
-       y = "Solar Energy per Capita Generated, Relative to Median State",
+       y = "Solar Energy per Capita Generated, Relative to U.S. Median",
        caption = "Data source: SEDS (U.S. Energy Information Administration)") +
   annotate("segment", 
            x = "HI", xend = "HI", 
@@ -225,14 +225,42 @@ gen %>%
            lineheight = 1,
            hjust = 1, vjust = 1) +
   annotate("text",
-           x = "OK", y = 12,
-           label = "South Dakota and North Dakota \nare omitted above, having \nproduced no solar energy in 2016.",
+           x = "NE", y = 12,
+           label = "Note: \nSouth Dakota and North Dakota \nare omitted above, having \nproduced no solar energy in 2016.",
            family = "Asap",
            fontface = "italic",
            color = text_black,
            size = 3,
            lineheight = 1,
            hjust = 0, vjust = 1) +
+  annotate("text",
+           x = "NC", y = 1.2,
+           label = "Iowa, the median state, \ngenerated 0.064 BTUs \nof solar energy per \n10k people in 2016.",
+           family = "Asap",
+           fontface = "italic",
+           color = text_black,
+           size = 3,
+           lineheight = 1,
+           hjust = 0, vjust = 1) +
+  annotate("segment",
+           x = 22.5, xend = "IA",
+           y = 1.2, yend= 1,
+           color = text_black,
+           size = 0.2) +
+  annotate("text",
+           x = "VT", y = 20,
+           label = "Hawaii generated 3.35 BTUs \nof solar energy per 10k \npeople in 2016 - about \n52 times that of Iowa.",
+           family = "Asap",
+           fontface = "italic",
+           color = text_black,
+           size = 3,
+           lineheight = 1,
+           hjust = 0, vjust = 1) +
+  annotate("segment",
+           x = 45.5, xend = "HI",
+           y = 40, yend = 52.55365894,
+           color = text_black,
+           size = 0.2) +
   theme_custom() + 
   theme(panel.grid.major.y = element_blank(),
         axis.text.y = element_blank()) +
@@ -241,7 +269,7 @@ gen %>%
 ggsave(here('output', '02-gen-by-state-mul.png'), width = 8, height = 8)
 ```
 
-Unsurprisingly, California was the single largest **residential** generator of solar energy in 2016 - in fact, California and Arizona combined generated more than half of the national total. What is a bit more of a surprise is how high on the list the Northeast states like New York (#3), New Jersey (#4), and Massachussetts (#6) lie, particularly in comparison to known sunny states like Nevada (#9), Texas (#10) and Florida (#13).
+Unsurprisingly, California was the single largest **residential** generator of solar energy in 2016 - in fact, California and Arizona combined generated more than half of the national total. What is a bit more of a surprise is how high on the list the Northeast states like Vermont (#5), Massachussetts (#6), and New Jersey (#7) lie, especially in comparison to known sunny states like Texas (#23) or Florida (#27).
 
 That brings me to my next question: does the amount of sunlight each state receives correlate with the solar energy it generates? 
 
@@ -359,28 +387,50 @@ panels_by_pop %>%
   mutate(region = factor(region,
                          levels = c("West", "Northeast", "South", "North Central"))) %>%
   mutate(highlight = ifelse(region == "Northeast", TRUE, FALSE)) %>%
-  filter(!is.na(region)) %>%
   filter(year == 2016) %>%
   ##### PLOT BEGINS
   ggplot(aes(x = reorder(state, -panels_per_10k), 
              y = panels_per_10k,
              fill = highlight)) +
-  geom_bar(stat = 'identity',
-           show.legend = FALSE) +
-  facet_grid(. ~ region,
-             scales = "free_x",
-             space = "free_x") +
-  scale_fill_manual(values = c(theme_bg_gray, theme_purple)) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label = state,
+                y = ifelse(panels_per_10k >= 1, 
+                           panels_per_10k * 1.6,
+                           panels_per_10k * 0.6),
+                color = highlight),
+            angle = 90,
+            show.legend = FALSE) +
+  scale_fill_manual(name = "Region",
+                    breaks = TRUE,
+                    labels = "Northeast",
+                    values = c(theme_bg_gray, theme_purple),
+                    na.value = theme_bg_gray) +
+  scale_color_manual(values = c(theme_bg_gray, theme_purple),
+                    na.value = theme_bg_gray) +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100),
+                labels = c("0.01", "0.1", "1", "10", "100")) +
   labs(title = 'Northeast states are surprisingly well-represented in solar panel counts',
        subtitle = 'Adjusting for state population size, MA, NJ, and CT have the 3rd, 5th and 7th-most residential \nsolar panel installations per capita respectively.',
        x = 'State',
-       y = 'Panels per 10,000 people',
+       y = 'Log Panels per 10,000 people',
        caption = 'Data sources: NREL (U.S. Dept of Energy), National Cancer Institute') +
+  annotate("segment", 
+           x = 38.5, xend = Inf,
+           y = 0.1, yend = 0.1,
+           color = "#FFFFFF") +
+  annotate("segment",
+           x = 0.5, xend = 13.5,
+           y = 10, yend = 10,
+           color = "#FFFFFF") +
+  annotate("segment",
+           x = 0.5, xend = 2.5,
+           y = 100, yend = 100,
+           color = "#FFFFFF") +
   theme_custom() +
-  theme(axis.text.x = element_text(angle = 90, 
-                                   vjust = 0.5,
-                                   margin = margin(0, 0, 10, 0)),
-        panel.grid.major.x = element_blank())
+  theme(axis.text.x = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.position = c(0.85, 0.97),
+        legend.direction = "horizontal")
 
 ggsave(here('output', '04-panels-by-pop-state.png'), width = 8, height = 6)
 ```
@@ -588,7 +638,8 @@ policy %>%
         legend.position = c(0.8, 0.93),
         legend.background = element_rect(fill = "#FFFFFF",
                                          linetype = "blank"),
-        axis.text.y.left = element_text(margin = margin(0, 0, 0, 20)))
+        axis.text.y.left = element_text(margin = margin(0, 0, 0, 20)),
+        axis.ticks.x.top = element_line(color = theme_bg_gray))
 
 ggsave(here('output', '06-policy-by-state-year.png'), width = 8, height = 10)
 ```
@@ -704,7 +755,7 @@ panels %>%
 ggsave(here('output', '08-panel-cpw-by-year.png'), width = 8, height = 6)
 ```
 
-While panels have gotten cheaper overall, what does this change look like for specific states? In particular, how has cost-per-watt changed for the three Northeast states we identified above - Massachussetts, New York, and New Jersey - that generated disproportionately high levels of solar energy relative to the solar irradiance they received? 
+While panels have gotten cheaper overall, what does this change look like for specific states? In particular, how has cost-per-watt changed for the three Northeast states we identified above - Connecticut, Massachussetts, and New Jersey - that generated disproportionately high levels of solar energy relative to the solar irradiance they received? 
 
 ```{r, message=F, warning=F, fig.width=4, fig.height=3}
 panels %>%
