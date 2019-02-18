@@ -508,15 +508,16 @@ county_map %>%
                         title.hjust = 0,
                         ticks.linewidth = 1
                       )) +
-  scale_size_area(name = "Panels \nper 10K",
+  scale_size_area(name = "Panels per 10K \nper county",
              guide = guide_legend(
-               override.aes = list(shape = 16, color = "#000000")
+               override.aes = list(shape = 16, color = "#000000"),
+               title.hjust = 0
              )) +
   coord_sf(xlim = bounds[, 1], 
          ylim = bounds[, 2],
          expand = FALSE) +
   labs(title = "Large panels-per-capita in the Northeast, despite low annual solar radiation",
-       subtitle = "While the Northeast region receives the least solar irradiance in the US, it also has states with \ndisproportionately high solar panel installation rates.",
+       subtitle = "While the Northeast region receives the least solar irradiance in the US, it also has counties with \ndisproportionately high solar panel installation rates.",
        caption = "Data source: NREL (U.S. Dept of Energy) \nNote: HI and AK are omitted due to lack of comparable solar resource data available.") +
   annotate("text",
            x = 2300000, y = -150000,
