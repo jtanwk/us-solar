@@ -1,6 +1,8 @@
 *.csv
 *.json
 *.geojson
+D3
+data
 
 .Rproj.user
 .Rhistory
